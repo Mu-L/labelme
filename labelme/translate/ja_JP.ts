@@ -172,6 +172,26 @@
         <source>Click opposite corner to segment object</source>
         <translation>対角をクリックしてオブジェクトをセグメント</translation>
     </message>
+    <message>
+        <location filename="../widgets/canvas.py" line="0"/>
+        <source>Click first corner for oriented rectangle</source>
+        <translation>向き付き矩形の最初の角をクリック</translation>
+    </message>
+    <message>
+        <location filename="../widgets/canvas.py" line="0"/>
+        <source>Click second corner to set orientation</source>
+        <translation>2番目の角をクリックして向きを設定</translation>
+    </message>
+    <message>
+        <location filename="../widgets/canvas.py" line="0"/>
+        <source>Click third corner to close oriented rectangle</source>
+        <translation>3番目の角をクリックして向き付き矩形を閉じる</translation>
+    </message>
+    <message>
+        <location filename="../widgets/canvas.py" line="0"/>
+        <source>Click &amp; drag to rotate the shape</source>
+        <translation>クリック &amp; ドラッグで図形を回転</translation>
+    </message>
 </context>
 <context>
     <name>MainWindow</name>
@@ -872,6 +892,16 @@ Please select a different model or use AI-Box mode.</source>
         <location filename="../app.py" line="0"/>
         <source>Failed to load: {path}</source>
         <translation>読み込みに失敗しました: {path}</translation>
+    </message>
+    <message>
+        <location filename="../app.py" line="0"/>
+        <source>Oriented Rectangle</source>
+        <translation>向き付き矩形</translation>
+    </message>
+    <message>
+        <location filename="../app.py" line="0"/>
+        <source>Start drawing oriented rectangles</source>
+        <translation>向き付き矩形の描画を開始</translation>
     </message>
 </context>
 </TS>
