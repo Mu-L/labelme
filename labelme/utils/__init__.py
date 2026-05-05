@@ -13,6 +13,7 @@ from .image import img_data_to_png_data
 from .image import img_pil_to_data
 from .image import img_qt_to_arr
 from .qt import add_actions
+from .qt import direction_angle
 from .qt import distance
 from .qt import distance_to_line
 from .qt import format_shortcut
@@ -20,6 +21,8 @@ from .qt import label_validator
 from .qt import new_action
 from .qt import new_button
 from .qt import new_icon
+from .qt import project_point_on_line
+from .qt import project_point_on_perpendicular_line
 from .shape import masks_to_bboxes
 from .shape import shape_to_mask
 from .shape import shapes_to_label
