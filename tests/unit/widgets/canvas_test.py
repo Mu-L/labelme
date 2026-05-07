@@ -135,7 +135,7 @@ def test_shape_visibility_survives_backup_and_restore(canvas: Canvas) -> None:
     canvas.set_shape_visible(canvas.shapes[0], False)
     canvas.backup_shapes()
     canvas.load_shapes([shape.copy()])
-    assert canvas.is_shape_visible(canvas.shapes[0]) is False
+    assert canvas.shapes[0].visible is False
 
     canvas.restore_last_shape()
-    assert canvas.is_shape_visible(canvas.shapes[0]) is False
+    assert canvas.shapes[0].visible is False

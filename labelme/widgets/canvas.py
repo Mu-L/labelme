@@ -138,9 +138,6 @@ class Canvas(QtWidgets.QWidget):
         self.setMouseTracking(True)
         self.setFocusPolicy(Qt.WheelFocus)
 
-    def fill_drawing(self) -> bool:
-        return self._fill_drawing
-
     def set_fill_drawing(self, value: bool) -> None:
         self._fill_drawing = value
 
@@ -250,15 +247,6 @@ class Canvas(QtWidgets.QWidget):
         self._release_cursor()
         self._update_status()
 
-    def is_shape_visible(self, shape: Shape) -> bool:
-        return shape.visible
-
-    def drawing(self) -> bool:
-        return self.mode == CanvasMode.CREATE
-
-    def editing(self) -> bool:
-        return self.mode == CanvasMode.EDIT
-
     def set_editing(self, value: bool = True) -> None:
         self.mode = CanvasMode.EDIT if value else CanvasMode.CREATE
         if self.mode == CanvasMode.EDIT:
@@ -307,7 +295,7 @@ class Canvas(QtWidgets.QWidget):
 
     def _update_status(self, extra_messages: list[str] | None = None) -> None:
         messages: list[str] = []
-        if self.drawing():
+        if self.mode == CanvasMode.CREATE:
             messages.append(self.tr("Creating %r") % self.create_mode)
             messages.append(self._get_create_mode_message())
             if self.current:
@@ -315,14 +303,14 @@ class Canvas(QtWidgets.QWidget):
             if self.can_close_shape():
                 messages.append(self.tr("Enter or Space to finalize"))
         else:
-            assert self.editing()
+            assert self.mode == CanvasMode.EDIT
             messages.append(self.tr("Editing shapes"))
         if extra_messages:
             messages.extend(extra_messages)
         self.status_updated.emit(" • ".join(messages))
 
     def _get_create_mode_message(self) -> str:
-        assert self.drawing()
+        assert self.mode == CanvasMode.CREATE
         is_new: bool = self.current is None
         if self.create_mode == "ai_points_to_shape":
             return self.tr(
@@ -371,7 +359,7 @@ class Canvas(QtWidgets.QWidget):
         if self._pan_anchor is not None:
             self._advance_pan(event=event)
             return
-        if self.drawing():
+        if self.mode == CanvasMode.CREATE:
             self._track_drawing_cursor(pos=pos, event=event)
             return
         buttons = event.buttons()
@@ -519,11 +507,7 @@ class Canvas(QtWidgets.QWidget):
     def _highlight_hover_shape(self, pos: QPointF, status_messages: list[str]) -> None:
         ordered_shapes: list[Shape] = (
             [self.hovered_shape] if self.hovered_shape else []
-        ) + [
-            s
-            for s in reversed(self.shapes)
-            if self.is_shape_visible(s) and s != self.hovered_shape
-        ]
+        ) + [s for s in reversed(self.shapes) if s.visible and s != self.hovered_shape]
 
         for shape in ordered_shapes:
             index: int | None = shape.nearest_vertex(pos, self.epsilon)
@@ -607,7 +591,7 @@ class Canvas(QtWidgets.QWidget):
         if button == Qt.LeftButton:
             self._press_left(pos=pos, event=event)
             return
-        if button == Qt.RightButton and self.editing():
+        if button == Qt.RightButton and self.mode == CanvasMode.EDIT:
             self._press_right(pos=pos, event=event)
             return
         if button == Qt.MiddleButton and self._is_image_overflowing_viewport():
@@ -615,12 +599,12 @@ class Canvas(QtWidgets.QWidget):
 
     def _press_left(self, pos: QPointF, event: QtGui.QMouseEvent) -> None:
         is_shift_pressed = bool(event.modifiers() & Qt.ShiftModifier)
-        if self.drawing():
+        if self.mode == CanvasMode.CREATE:
             self._press_left_while_drawing(
                 pos=pos, event=event, is_shift_pressed=is_shift_pressed
             )
             return
-        if self.editing():
+        if self.mode == CanvasMode.EDIT:
             self._press_left_while_editing(pos=pos, event=event)
 
     def _press_left_while_drawing(
@@ -761,7 +745,7 @@ class Canvas(QtWidgets.QWidget):
         self.update()
 
     def _release_left(self) -> None:
-        if not self.editing():
+        if self.mode != CanvasMode.EDIT:
             return
         if self.hovered_shape is None:
             return
@@ -850,7 +834,7 @@ class Canvas(QtWidgets.QWidget):
         self._hide_background = self.hide_background if enable else False
 
     def can_close_shape(self) -> bool:
-        if not self.drawing():
+        if self.mode != CanvasMode.CREATE:
             return False
         if not self.current:
             return False
@@ -904,7 +888,7 @@ class Canvas(QtWidgets.QWidget):
 
     def _find_shape_at_point(self, point: QPointF) -> Shape | None:
         for shape in reversed(self.shapes):
-            if self.is_shape_visible(shape) and shape.contains_point(point):
+            if shape.visible and shape.contains_point(point):
                 return shape
         return None
 
@@ -1051,7 +1035,7 @@ class Canvas(QtWidgets.QWidget):
         painter.drawLine(cx, 0, cx, max_y)
 
     def _should_draw_crosshair(self, cursor: QPointF | None) -> bool:
-        if not self.drawing():
+        if self.mode != CanvasMode.CREATE:
             return False
         if not self._crosshair[self._create_mode]:
             return False
@@ -1063,7 +1047,7 @@ class Canvas(QtWidgets.QWidget):
         for shape in self.shapes:
             if not _is_shape_paintable(
                 shape=shape,
-                visible=self.is_shape_visible(shape),
+                visible=shape.visible,
                 hide_background=self._hide_background,
             ):
                 continue
@@ -1085,8 +1069,8 @@ class Canvas(QtWidgets.QWidget):
         preview = self._build_preview_shape()
         if preview is None:
             return
-        preview.fill = self.fill_drawing()
-        preview.selected = self.fill_drawing()
+        preview.fill = self._fill_drawing
+        preview.selected = self._fill_drawing
         preview.paint(painter)
 
     def _build_preview_shape(self) -> Shape | None:
@@ -1100,7 +1084,7 @@ class Canvas(QtWidgets.QWidget):
 
     def _build_polygon_preview(self, current: Shape) -> Shape:
         preview: Shape = current.copy()
-        if not self.fill_drawing():
+        if not self._fill_drawing:
             return preview
         if len(preview.points) < 2:
             return preview
@@ -1243,14 +1227,14 @@ class Canvas(QtWidgets.QWidget):
     def keyPressEvent(self, a0: QtGui.QKeyEvent) -> None:
         modifiers = a0.modifiers()
         key = a0.key()
-        if self.drawing():
+        if self.mode == CanvasMode.CREATE:
             if key == Qt.Key_Escape and self.current:
                 self._cancel_current_shape()
             elif key in (Qt.Key_Return, Qt.Key_Space) and self.can_close_shape():
                 self.finalise()
             elif modifiers == Qt.AltModifier:
                 self.snapping = False
-        elif self.editing():
+        elif self.mode == CanvasMode.EDIT:
             if key == Qt.Key_Up:
                 self.move_by_keyboard(QPointF(0.0, -MOVE_SPEED))
             elif key == Qt.Key_Down:
@@ -1265,10 +1249,10 @@ class Canvas(QtWidgets.QWidget):
 
     def keyReleaseEvent(self, a0: QtGui.QKeyEvent) -> None:
         modifiers = a0.modifiers()
-        if self.drawing():
+        if self.mode == CanvasMode.CREATE:
             if int(modifiers) == 0:
                 self.snapping = True
-        elif self.editing():
+        elif self.mode == CanvasMode.EDIT:
             if (
                 self.is_moving_shape
                 and self.selected_shapes
