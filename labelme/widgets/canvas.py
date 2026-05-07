@@ -247,9 +247,6 @@ class Canvas(QtWidgets.QWidget):
         self._release_cursor()
         self._update_status()
 
-    def editing(self) -> bool:
-        return self.mode == CanvasMode.EDIT
-
     def set_editing(self, value: bool = True) -> None:
         self.mode = CanvasMode.EDIT if value else CanvasMode.CREATE
         if self.mode == CanvasMode.EDIT:
@@ -306,7 +303,7 @@ class Canvas(QtWidgets.QWidget):
             if self.can_close_shape():
                 messages.append(self.tr("Enter or Space to finalize"))
         else:
-            assert self.editing()
+            assert self.mode == CanvasMode.EDIT
             messages.append(self.tr("Editing shapes"))
         if extra_messages:
             messages.extend(extra_messages)
@@ -594,7 +591,7 @@ class Canvas(QtWidgets.QWidget):
         if button == Qt.LeftButton:
             self._press_left(pos=pos, event=event)
             return
-        if button == Qt.RightButton and self.editing():
+        if button == Qt.RightButton and self.mode == CanvasMode.EDIT:
             self._press_right(pos=pos, event=event)
             return
         if button == Qt.MiddleButton and self._is_image_overflowing_viewport():
@@ -607,7 +604,7 @@ class Canvas(QtWidgets.QWidget):
                 pos=pos, event=event, is_shift_pressed=is_shift_pressed
             )
             return
-        if self.editing():
+        if self.mode == CanvasMode.EDIT:
             self._press_left_while_editing(pos=pos, event=event)
 
     def _press_left_while_drawing(
@@ -748,7 +745,7 @@ class Canvas(QtWidgets.QWidget):
         self.update()
 
     def _release_left(self) -> None:
-        if not self.editing():
+        if self.mode != CanvasMode.EDIT:
             return
         if self.hovered_shape is None:
             return
@@ -1237,7 +1234,7 @@ class Canvas(QtWidgets.QWidget):
                 self.finalise()
             elif modifiers == Qt.AltModifier:
                 self.snapping = False
-        elif self.editing():
+        elif self.mode == CanvasMode.EDIT:
             if key == Qt.Key_Up:
                 self.move_by_keyboard(QPointF(0.0, -MOVE_SPEED))
             elif key == Qt.Key_Down:
@@ -1255,7 +1252,7 @@ class Canvas(QtWidgets.QWidget):
         if self.mode == CanvasMode.CREATE:
             if int(modifiers) == 0:
                 self.snapping = True
-        elif self.editing():
+        elif self.mode == CanvasMode.EDIT:
             if (
                 self.is_moving_shape
                 and self.selected_shapes
