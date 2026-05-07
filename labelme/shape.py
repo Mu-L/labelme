@@ -440,9 +440,9 @@ def _paint_points(*, painter: QtGui.QPainter, shape: Shape) -> None:
     painter.drawPath(line_path)
     if vrtx_path.length() > 0:
         vertex_fill = (
-            shape.hvertex_fill_color
-            if shape.highlight is not None
-            else shape.vertex_fill_color
+            shape.vertex_fill_color
+            if shape.highlight is None
+            else shape.hvertex_fill_color
         )
         painter.drawPath(vrtx_path)
         painter.fillPath(vrtx_path, vertex_fill)
