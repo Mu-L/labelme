@@ -165,15 +165,6 @@ class Shape:
     def paint(self, painter: QtGui.QPainter) -> None:
         _paint_shape(painter=painter, shape=self)
 
-    def contains_point(self, point: QtCore.QPointF) -> bool:
-        return _shape_contains_point(
-            point=point,
-            shape_type=self.shape_type,
-            points=self.points,
-            mask=self.mask,
-            point_size=self.point_size,
-        )
-
     def bounds(self) -> QtCore.QRectF:
         path = _make_shape_path(shape_type=self.shape_type, points=self.points)
         return path.boundingRect()
@@ -245,29 +236,6 @@ def _make_shape_path(
 ) -> QtGui.QPainterPath:
     builder = _PATH_BUILDERS.get(shape_type, _build_polyline_path)
     return builder(points=points)
-
-
-def _shape_contains_point(
-    *,
-    point: QtCore.QPointF,
-    shape_type: str,
-    points: list[QtCore.QPointF],
-    mask: npt.NDArray[np.bool_] | None,
-    point_size: int,
-) -> bool:
-    if shape_type in ["line", "linestrip", "points"]:
-        return False
-    if shape_type == "point":
-        if not points:
-            return False
-        return labelme.utils.distance(point - points[0]) <= point_size / 2
-    if mask is not None:
-        raw_y = int(round(point.y() - points[0].y()))
-        raw_x = int(round(point.x() - points[0].x()))
-        if raw_y < 0 or raw_y >= mask.shape[0] or raw_x < 0 or raw_x >= mask.shape[1]:
-            return False
-        return bool(mask[raw_y, raw_x])
-    return _make_shape_path(shape_type=shape_type, points=points).contains(point)
 
 
 def _mask_contour_path(

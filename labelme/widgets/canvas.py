@@ -542,7 +542,7 @@ class Canvas(QtWidgets.QWidget):
                 return
 
         for shape in ordered_shapes:
-            if shape.contains_point(pos):
+            if _shape.contains_point(shape=shape, point=pos):
                 self._set_highlight(
                     hovered_shape=shape, hovered_edge=None, hovered_vertex=None
                 )
@@ -893,7 +893,7 @@ class Canvas(QtWidgets.QWidget):
 
     def _find_shape_at_point(self, point: QPointF) -> Shape | None:
         for shape in reversed(self.shapes):
-            if shape.visible and shape.contains_point(point):
+            if shape.visible and _shape.contains_point(shape=shape, point=point):
                 return shape
         return None
 
