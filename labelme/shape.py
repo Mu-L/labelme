@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import copy
 import dataclasses
-from collections.abc import Iterable
 from typing import Any
 from typing import Final
 from typing import Literal
@@ -166,16 +165,6 @@ class Shape:
     def paint(self, painter: QtGui.QPainter) -> None:
         _paint_shape(painter=painter, shape=self)
 
-    def nearest_vertex(self, point: QtCore.QPointF, epsilon: float) -> int | None:
-        return _nearest_vertex_index(
-            point=point, points=self.points, scale=self.scale, epsilon=epsilon
-        )
-
-    def nearest_edge(self, point: QtCore.QPointF, epsilon: float) -> int | None:
-        return _nearest_edge_index(
-            point=point, points=self.points, scale=self.scale, epsilon=epsilon
-        )
-
     def contains_point(self, point: QtCore.QPointF) -> bool:
         return _shape_contains_point(
             point=point,
@@ -260,47 +249,6 @@ def _make_shape_path(
 ) -> QtGui.QPainterPath:
     builder = _PATH_BUILDERS.get(shape_type, _build_polyline_path)
     return builder(points=points)
-
-
-def _argmin(values: Iterable[float]) -> tuple[int, float] | None:
-    return min(enumerate(values), key=lambda item: item[1], default=None)
-
-
-def _nearest_vertex_index(
-    *,
-    point: QtCore.QPointF,
-    points: list[QtCore.QPointF],
-    scale: float,
-    epsilon: float,
-) -> int | None:
-    scaled_point = _scale_point(point=point, scale=scale)
-    nearest = _argmin(
-        labelme.utils.distance(_scale_point(point=p, scale=scale) - scaled_point)
-        for p in points
-    )
-    if nearest is None or nearest[1] > epsilon:
-        return None
-    return nearest[0]
-
-
-def _nearest_edge_index(
-    *,
-    point: QtCore.QPointF,
-    points: list[QtCore.QPointF],
-    scale: float,
-    epsilon: float,
-) -> int | None:
-    scaled_point = _scale_point(point=point, scale=scale)
-    scaled_points = [_scale_point(point=p, scale=scale) for p in points]
-    nearest = _argmin(
-        labelme.utils.distance_to_line(
-            scaled_point, (scaled_points[i - 1], scaled_points[i])
-        )
-        for i in range(len(points))
-    )
-    if nearest is None or nearest[1] > epsilon:
-        return None
-    return nearest[0]
 
 
 def _shape_contains_point(
