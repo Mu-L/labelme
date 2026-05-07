@@ -204,10 +204,6 @@ class Shape:
         self.points[key] = value
 
 
-def _scale_point(*, point: QtCore.QPointF, scale: float) -> QtCore.QPointF:
-    return QtCore.QPointF(point.x() * scale, point.y() * scale)
-
-
 def _build_rectangle_path(*, points: list[QtCore.QPointF]) -> QtGui.QPainterPath:
     out = QtGui.QPainterPath()
     if len(points) == 2:
@@ -284,15 +280,9 @@ def _mask_contour_path(
     output = QtGui.QPainterPath()
     for contour in contours:
         contour = contour + [origin.y(), origin.x()]
-        output.moveTo(
-            _scale_point(
-                point=QtCore.QPointF(contour[0, 1], contour[0, 0]), scale=scale
-            )
-        )
+        output.moveTo(QtCore.QPointF(contour[0, 1], contour[0, 0]) * scale)
         for point in contour[1:]:
-            output.lineTo(
-                _scale_point(point=QtCore.QPointF(point[1], point[0]), scale=scale)
-            )
+            output.lineTo(QtCore.QPointF(point[1], point[0]) * scale)
     return output
 
 
@@ -307,7 +297,7 @@ def _add_shape_vertex(
         size = shape.point_size
         point_type = shape.point_type
 
-    pos = _scale_point(point=shape.points[vertex_index], scale=shape.scale)
+    pos = shape.points[vertex_index] * shape.scale
 
     half = size / 2.0
     if point_type == _P_SQUARE:
@@ -341,7 +331,7 @@ def _paint_shape_mask(*, painter: QtGui.QPainter, shape: Shape) -> None:
     image_to_draw[shape.mask] = fill.getRgb()
     qimage = QtGui.QImage.fromData(labelme.utils.img_arr_to_data(image_to_draw))
     origin = shape.points[0]
-    target_top_left = _scale_point(point=origin, scale=shape.scale)
+    target_top_left = origin * shape.scale
     target_rect = QtCore.QRectF(
         target_top_left.x(),
         target_top_left.y(),
@@ -399,8 +389,8 @@ def _build_shape_paths(
         if len(shape.points) == 2:
             path_line.addRect(
                 QtCore.QRectF(
-                    _scale_point(point=shape.points[0], scale=shape.scale),
-                    _scale_point(point=shape.points[1], scale=shape.scale),
+                    shape.points[0] * shape.scale,
+                    shape.points[1] * shape.scale,
                 )
             )
         if shape.shape_type == "rectangle":
@@ -410,17 +400,15 @@ def _build_shape_paths(
         assert len(shape.points) in [1, 2]
         if len(shape.points) == 2:
             radius = labelme.utils.distance(
-                _scale_point(point=shape.points[0] - shape.points[1], scale=shape.scale)
+                (shape.points[0] - shape.points[1]) * shape.scale
             )
-            path_line.addEllipse(
-                _scale_point(point=shape.points[0], scale=shape.scale), radius, radius
-            )
+            path_line.addEllipse(shape.points[0] * shape.scale, radius, radius)
         for i in range(len(shape.points)):
             _add_shape_vertex(path_vertices, shape=shape, vertex_index=i)
     elif shape.shape_type == "linestrip":
-        path_line.moveTo(_scale_point(point=shape.points[0], scale=shape.scale))
+        path_line.moveTo(shape.points[0] * shape.scale)
         for i, p in enumerate(shape.points):
-            path_line.lineTo(_scale_point(point=p, scale=shape.scale))
+            path_line.lineTo(p * shape.scale)
             _add_shape_vertex(path_vertices, shape=shape, vertex_index=i)
     elif shape.shape_type == "points":
         assert len(shape.points) == len(shape.point_labels)
@@ -428,9 +416,9 @@ def _build_shape_paths(
             target = path_vertices if point_label == 1 else path_negative_vertices
             _add_shape_vertex(target, shape=shape, vertex_index=i)
     else:
-        path_line.moveTo(_scale_point(point=shape.points[0], scale=shape.scale))
+        path_line.moveTo(shape.points[0] * shape.scale)
         for i, p in enumerate(shape.points):
-            path_line.lineTo(_scale_point(point=p, scale=shape.scale))
+            path_line.lineTo(p * shape.scale)
             _add_shape_vertex(path_vertices, shape=shape, vertex_index=i)
         if shape.is_closed():
-            path_line.lineTo(_scale_point(point=shape.points[0], scale=shape.scale))
+            path_line.lineTo(shape.points[0] * shape.scale)
