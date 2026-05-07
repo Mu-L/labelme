@@ -901,9 +901,9 @@ class Canvas(QtWidgets.QWidget):
         if not self.selected_shapes:
             self._drag_anchor = (QPointF(), QRectF())
             return
-        bounds = self.selected_shapes[0].bounds()
+        bounds = _shape.bounds(shape=self.selected_shapes[0])
         for s in self.selected_shapes[1:]:
-            bounds = bounds.united(s.bounds())
+            bounds = bounds.united(_shape.bounds(shape=s))
         self._drag_anchor = (bounds.topLeft() - click, bounds)
 
     def _bounded_move_vertex(

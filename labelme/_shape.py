@@ -66,3 +66,8 @@ def contains_point(*, shape: Shape, point: QtCore.QPointF) -> bool:
     return _make_shape_path(shape_type=shape.shape_type, points=shape.points).contains(
         point
     )
+
+
+def bounds(*, shape: Shape) -> QtCore.QRectF:
+    path = _make_shape_path(shape_type=shape.shape_type, points=shape.points)
+    return path.boundingRect()

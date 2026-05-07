@@ -165,10 +165,6 @@ class Shape:
     def paint(self, painter: QtGui.QPainter) -> None:
         _paint_shape(painter=painter, shape=self)
 
-    def bounds(self) -> QtCore.QRectF:
-        path = _make_shape_path(shape_type=self.shape_type, points=self.points)
-        return path.boundingRect()
-
     def move_vertex(self, i: int, pos: QtCore.QPointF) -> None:
         self.points[i] = pos
 
