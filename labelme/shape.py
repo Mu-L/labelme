@@ -348,25 +348,19 @@ def _mask_contour_path(
     return output
 
 
-def _vertex_size_and_type(
-    *,
-    base_size: int,
-    base_type: int,
-    highlight: _VertexHighlight | None,
-    vertex_index: int,
-) -> tuple[float, int]:
-    if highlight is not None and highlight.index == vertex_index:
-        return base_size * highlight.size_factor, highlight.point_type
-    return base_size, base_type
-
-
-def _add_vertex_to_path(
-    path: QtGui.QPainterPath,
-    *,
-    pos: QtCore.QPointF,
-    size: float,
-    point_type: int,
+def _add_shape_vertex(
+    path: QtGui.QPainterPath, *, shape: Shape, vertex_index: int
 ) -> None:
+    highlight = shape.highlight
+    if highlight is not None and highlight.index == vertex_index:
+        size = shape.point_size * highlight.size_factor
+        point_type = highlight.point_type
+    else:
+        size = shape.point_size
+        point_type = shape.point_type
+
+    pos = _scale_point(point=shape.points[vertex_index], scale=shape.scale)
+
     half = size / 2.0
     if point_type == _P_SQUARE:
         path.addRect(pos.x() - half, pos.y() - half, size, size)
@@ -374,19 +368,6 @@ def _add_vertex_to_path(
         path.addEllipse(pos, half, half)
     else:
         raise ValueError(f"Unsupported vertex shape: {point_type}")
-
-
-def _add_shape_vertex(
-    path: QtGui.QPainterPath, *, shape: Shape, vertex_index: int
-) -> None:
-    size, point_type = _vertex_size_and_type(
-        base_size=shape.point_size,
-        base_type=shape.point_type,
-        highlight=shape.highlight,
-        vertex_index=vertex_index,
-    )
-    pos = _scale_point(point=shape.points[vertex_index], scale=shape.scale)
-    _add_vertex_to_path(path, pos=pos, size=size, point_type=point_type)
 
 
 def _paint_shape(*, painter: QtGui.QPainter, shape: Shape) -> None:
