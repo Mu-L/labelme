@@ -210,8 +210,8 @@ def test_snapshot_polygon_mid_draw(
     for xy in _TRIANGLE_FRACTIONS[:2]:
         click_canvas_fraction(qtbot=qtbot, canvas=canvas, xy=xy)
 
-    assert canvas.current is not None
-    assert len(canvas.current.points) == 2
+    assert canvas._current is not None
+    assert len(canvas._current.points) == 2
 
     fx, fy = _TRIANGLE_FRACTIONS[2]
     cursor_image_pos = QPointF(pixmap.width() * fx, pixmap.height() * fy)
@@ -228,7 +228,7 @@ def test_snapshot_polygon_mid_draw(
     # Cancel the in-progress shape; without this close_or_pause triggers a dialog.
     qtbot.keyPress(canvas, Qt.Key_Escape)
     qtbot.wait(_MODE_SWITCH_SETTLE_MS)
-    assert canvas.current is None
+    assert canvas._current is None
 
     close_or_pause(qtbot=qtbot, widget=raw_win, pause=pause)
 
@@ -254,7 +254,7 @@ def test_snapshot_after_polygon_commit(
         vertices=_TRIANGLE_FRACTIONS,
     )
     assert len(canvas.shapes) == 1
-    assert canvas.current is None
+    assert canvas._current is None
     qtbot.wait(_PAINT_SETTLE_MS)
 
     _check_or_update_snapshot(
