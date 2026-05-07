@@ -640,7 +640,7 @@ class Canvas(QtWidgets.QWidget):
         mode = self.create_mode
         modifiers = event.modifiers()
         if mode == "polygon":
-            current.add_point(self.line[1])
+            current.add_point(self.line[1], autoclose=True)
             self.line[0] = current[-1]
             if current.is_closed():
                 self.finalise()
@@ -1111,7 +1111,7 @@ class Canvas(QtWidgets.QWidget):
                 " so forcing to be opaque."
             )
             preview.fill_color.setAlpha(64)
-        preview.add_point(point=self.line[1])
+        preview.add_point(point=self.line[1], autoclose=True)
         return preview
 
     def _build_ai_points_preview(self, current: Shape) -> Shape:
