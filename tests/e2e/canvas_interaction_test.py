@@ -11,7 +11,7 @@ from pytestqt.qtbot import QtBot
 from labelme.app import MainWindow
 from labelme.shape import Shape
 from labelme.widgets.canvas import Canvas
-from labelme.widgets.canvas import CanvasMode
+from labelme.widgets.canvas import _CanvasMode
 from labelme.widgets.label_dialog import LabelDialog
 
 from ..conftest import assert_labelfile_sanity
@@ -305,7 +305,7 @@ def test_draw_actions_disable_only_active_mode(
 
     annotated_win._switch_canvas_mode(edit=False, create_mode="polygon")
     qtbot.wait(50)
-    assert canvas.mode == CanvasMode.CREATE
+    assert canvas.mode == _CanvasMode.CREATE
 
     for draw_mode, draw_action in annotated_win._actions.draw:
         if draw_mode == "polygon":
@@ -315,7 +315,7 @@ def test_draw_actions_disable_only_active_mode(
 
     annotated_win._switch_canvas_mode(edit=True)
     qtbot.wait(50)
-    assert canvas.mode == CanvasMode.EDIT
+    assert canvas.mode == _CanvasMode.EDIT
 
     for _, draw_action in annotated_win._actions.draw:
         assert draw_action.isEnabled()
@@ -336,12 +336,12 @@ def test_cancel_drawing_with_escape(
     for xy in [(0.3, 0.3), (0.6, 0.3)]:
         click_canvas_fraction(qtbot=qtbot, canvas=canvas, xy=xy)
 
-    assert canvas.current is not None
+    assert canvas._current is not None
 
     qtbot.keyPress(canvas, Qt.Key_Escape)
     qtbot.wait(50)
 
-    assert canvas.current is None
+    assert canvas._current is None
     close_or_pause(qtbot=qtbot, widget=annotated_win, pause=pause)
 
 
@@ -360,19 +360,19 @@ def test_undo_last_point_while_drawing(
     for xy in [(0.3, 0.3), (0.6, 0.3), (0.6, 0.6)]:
         click_canvas_fraction(qtbot=qtbot, canvas=canvas, xy=xy)
 
-    assert canvas.current is not None
-    assert len(canvas.current.points) == 3
+    assert canvas._current is not None
+    assert len(canvas._current.points) == 3
 
     canvas.undo_last_point()
     qtbot.wait(50)
 
-    assert canvas.current is not None
-    assert len(canvas.current.points) == 2
+    assert canvas._current is not None
+    assert len(canvas._current.points) == 2
 
     for xy in [(0.6, 0.6), (0.3, 0.6)]:
         click_canvas_fraction(qtbot=qtbot, canvas=canvas, xy=xy)
 
-    assert len(canvas.current.points) == 4
+    assert len(canvas._current.points) == 4
 
     label = "undo_polygon"
     submit_label_dialog(
@@ -408,7 +408,7 @@ def test_finalize_polygon_with_enter(
     for xy in [(0.3, 0.3), (0.6, 0.3), (0.6, 0.6)]:
         click_canvas_fraction(qtbot=qtbot, canvas=canvas, xy=xy)
 
-    assert canvas.current is not None
+    assert canvas._current is not None
 
     label = "enter_shape"
     submit_label_dialog(
@@ -440,7 +440,7 @@ def test_undo_shape_creation(
     for xy in [(0.3, 0.3), (0.6, 0.3), (0.6, 0.6)]:
         click_canvas_fraction(qtbot=qtbot, canvas=canvas, xy=xy)
 
-    assert canvas.current is not None
+    assert canvas._current is not None
 
     label = "undo_target"
     submit_label_dialog(
@@ -523,14 +523,14 @@ def test_cancel_label_reopens_shape(
     for xy in [(0.3, 0.3), (0.6, 0.3), (0.6, 0.6)]:
         click_canvas_fraction(qtbot=qtbot, canvas=canvas, xy=xy)
 
-    assert canvas.current is not None
+    assert canvas._current is not None
 
     _cancel_label(qtbot=qtbot, label_dialog=raw_win._label_dialog)
     click_canvas_fraction(qtbot=qtbot, canvas=canvas, xy=(0.3, 0.3))
 
     def shape_reopened() -> None:
         assert len(canvas.shapes) == num_shapes_before
-        assert canvas.current is not None
+        assert canvas._current is not None
 
     qtbot.waitUntil(shape_reopened)
 
