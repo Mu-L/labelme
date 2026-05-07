@@ -247,9 +247,6 @@ class Canvas(QtWidgets.QWidget):
         self._release_cursor()
         self._update_status()
 
-    def drawing(self) -> bool:
-        return self.mode == CanvasMode.CREATE
-
     def editing(self) -> bool:
         return self.mode == CanvasMode.EDIT
 
@@ -301,7 +298,7 @@ class Canvas(QtWidgets.QWidget):
 
     def _update_status(self, extra_messages: list[str] | None = None) -> None:
         messages: list[str] = []
-        if self.drawing():
+        if self.mode == CanvasMode.CREATE:
             messages.append(self.tr("Creating %r") % self.create_mode)
             messages.append(self._get_create_mode_message())
             if self.current:
@@ -316,7 +313,7 @@ class Canvas(QtWidgets.QWidget):
         self.status_updated.emit(" • ".join(messages))
 
     def _get_create_mode_message(self) -> str:
-        assert self.drawing()
+        assert self.mode == CanvasMode.CREATE
         is_new: bool = self.current is None
         if self.create_mode == "ai_points_to_shape":
             return self.tr(
@@ -365,7 +362,7 @@ class Canvas(QtWidgets.QWidget):
         if self._pan_anchor is not None:
             self._advance_pan(event=event)
             return
-        if self.drawing():
+        if self.mode == CanvasMode.CREATE:
             self._track_drawing_cursor(pos=pos, event=event)
             return
         buttons = event.buttons()
@@ -605,7 +602,7 @@ class Canvas(QtWidgets.QWidget):
 
     def _press_left(self, pos: QPointF, event: QtGui.QMouseEvent) -> None:
         is_shift_pressed = bool(event.modifiers() & Qt.ShiftModifier)
-        if self.drawing():
+        if self.mode == CanvasMode.CREATE:
             self._press_left_while_drawing(
                 pos=pos, event=event, is_shift_pressed=is_shift_pressed
             )
@@ -840,7 +837,7 @@ class Canvas(QtWidgets.QWidget):
         self._hide_background = self.hide_background if enable else False
 
     def can_close_shape(self) -> bool:
-        if not self.drawing():
+        if self.mode != CanvasMode.CREATE:
             return False
         if not self.current:
             return False
@@ -1041,7 +1038,7 @@ class Canvas(QtWidgets.QWidget):
         painter.drawLine(cx, 0, cx, max_y)
 
     def _should_draw_crosshair(self, cursor: QPointF | None) -> bool:
-        if not self.drawing():
+        if self.mode != CanvasMode.CREATE:
             return False
         if not self._crosshair[self._create_mode]:
             return False
@@ -1233,7 +1230,7 @@ class Canvas(QtWidgets.QWidget):
     def keyPressEvent(self, a0: QtGui.QKeyEvent) -> None:
         modifiers = a0.modifiers()
         key = a0.key()
-        if self.drawing():
+        if self.mode == CanvasMode.CREATE:
             if key == Qt.Key_Escape and self.current:
                 self._cancel_current_shape()
             elif key in (Qt.Key_Return, Qt.Key_Space) and self.can_close_shape():
@@ -1255,7 +1252,7 @@ class Canvas(QtWidgets.QWidget):
 
     def keyReleaseEvent(self, a0: QtGui.QKeyEvent) -> None:
         modifiers = a0.modifiers()
-        if self.drawing():
+        if self.mode == CanvasMode.CREATE:
             if int(modifiers) == 0:
                 self.snapping = True
         elif self.editing():
