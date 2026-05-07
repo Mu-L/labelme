@@ -5,7 +5,6 @@ import dataclasses
 from typing import Any
 from typing import Final
 from typing import Literal
-from typing import Protocol
 
 import numpy as np
 import numpy.typing as npt
@@ -189,49 +188,6 @@ class Shape:
 
     def __setitem__(self, key: int, value: QtCore.QPointF) -> None:
         self.points[key] = value
-
-
-def _build_rectangle_path(*, points: list[QtCore.QPointF]) -> QtGui.QPainterPath:
-    out = QtGui.QPainterPath()
-    if len(points) == 2:
-        out.addRect(QtCore.QRectF(points[0], points[1]))
-    return out
-
-
-def _build_circle_path(*, points: list[QtCore.QPointF]) -> QtGui.QPainterPath:
-    out = QtGui.QPainterPath()
-    if len(points) == 2:
-        radius = labelme.utils.distance(points[0] - points[1])
-        out.addEllipse(points[0], radius, radius)
-    return out
-
-
-def _build_polyline_path(*, points: list[QtCore.QPointF]) -> QtGui.QPainterPath:
-    out = QtGui.QPainterPath()
-    if not points:
-        return out
-    out.moveTo(points[0])
-    for vertex in points[1:]:
-        out.lineTo(vertex)
-    return out
-
-
-class _PathBuilder(Protocol):
-    def __call__(self, *, points: list[QtCore.QPointF]) -> QtGui.QPainterPath: ...
-
-
-_PATH_BUILDERS: Final[dict[str, _PathBuilder]] = {
-    "rectangle": _build_rectangle_path,
-    "mask": _build_rectangle_path,
-    "circle": _build_circle_path,
-}
-
-
-def _make_shape_path(
-    *, shape_type: str, points: list[QtCore.QPointF]
-) -> QtGui.QPainterPath:
-    builder = _PATH_BUILDERS.get(shape_type, _build_polyline_path)
-    return builder(points=points)
 
 
 def _mask_contour_path(
