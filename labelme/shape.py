@@ -1,10 +1,11 @@
 from __future__ import annotations
 
 import copy
+import dataclasses
 from collections.abc import Iterable
 from typing import Any
 from typing import Final
-from typing import NamedTuple
+from typing import Literal
 from typing import Protocol
 
 import numpy as np
@@ -22,15 +23,27 @@ _P_ROUND: Final[int] = 1
 POLYLINE_SHAPE_TYPES: Final[tuple[str, ...]] = ("polygon", "linestrip")
 
 
-class _Highlight(NamedTuple):
+@dataclasses.dataclass(frozen=True)
+class _VertexHighlight:
     index: int
-    mode: int
+    mode: Literal["move", "near"]
+
+    @property
+    def size_factor(self) -> float:
+        return {
+            "move": 1.5,
+            "near": 4.0,
+        }[self.mode]
+
+    @property
+    def point_type(self) -> int:
+        return {
+            "move": _P_SQUARE,
+            "near": _P_ROUND,
+        }[self.mode]
 
 
 class Shape:
-    MOVE_VERTEX: Final[int] = 0
-    NEAR_VERTEX: Final[int] = 1
-
     PEN_WIDTH: Final[int] = 2
 
     line_color: QtGui.QColor = QtGui.QColor(0, 255, 0, 128)
@@ -67,7 +80,7 @@ class Shape:
         self.other_data: dict[str, Any] = {}
         self.mask = mask
         self._closed = False
-        self.highlight: _Highlight | None = None
+        self.highlight: _VertexHighlight | None = None
 
         if line_color is not None:
             # Per-instance line color override (used for the pending line).
@@ -183,8 +196,8 @@ class Shape:
         for i, point in enumerate(self.points):
             self.points[i] = point + offset
 
-    def highlight_vertex(self, i: int, action: int) -> None:
-        self.highlight = _Highlight(index=i, mode=action)
+    def highlight_vertex(self, index: int, mode: Literal["move", "near"]) -> None:
+        self.highlight = _VertexHighlight(index=index, mode=mode)
 
     def clear_highlight(self) -> None:
         self.highlight = None
@@ -200,12 +213,6 @@ class Shape:
 
     def __setitem__(self, key: int, value: QtCore.QPointF) -> None:
         self.points[key] = value
-
-
-_HIGHLIGHT_STYLES: Final[dict[int, tuple[float, int]]] = {
-    Shape.NEAR_VERTEX: (4.0, _P_ROUND),
-    Shape.MOVE_VERTEX: (1.5, _P_SQUARE),
-}
 
 
 def _scale_point(*, point: QtCore.QPointF, scale: float) -> QtCore.QPointF:
@@ -345,12 +352,11 @@ def _vertex_size_and_type(
     *,
     base_size: int,
     base_type: int,
-    highlight: _Highlight | None,
+    highlight: _VertexHighlight | None,
     vertex_index: int,
 ) -> tuple[float, int]:
     if highlight is not None and highlight.index == vertex_index:
-        size_factor, point_type = _HIGHLIGHT_STYLES[highlight.mode]
-        return base_size * size_factor, point_type
+        return base_size * highlight.size_factor, highlight.point_type
     return base_size, base_type
 
 

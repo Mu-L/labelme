@@ -411,7 +411,7 @@ class Canvas(QtWidgets.QWidget):
         if not self._cursor_should_snap_to_polygon_origin(pos=pos):
             return pos
         self._apply_cursor(CURSOR_POINT)
-        current.highlight_vertex(i=0, action=Shape.NEAR_VERTEX)
+        current.highlight_vertex(index=0, mode="near")
         return current[0]
 
     def _cursor_should_snap_to_polygon_origin(self, pos: QPointF) -> bool:
@@ -515,7 +515,7 @@ class Canvas(QtWidgets.QWidget):
                 self._set_highlight(
                     hovered_shape=shape, hovered_edge=None, hovered_vertex=index
                 )
-                shape.highlight_vertex(i=index, action=shape.MOVE_VERTEX)
+                shape.highlight_vertex(index=index, mode="move")
                 self._apply_cursor(CURSOR_POINT)
                 status_messages.append(self.tr("Click & drag to move point"))
                 if shape.can_remove_point():
@@ -564,7 +564,7 @@ class Canvas(QtWidgets.QWidget):
         if shape is None or index is None or point is None:
             return
         shape.insert_point(index, point)
-        shape.highlight_vertex(i=index, action=shape.MOVE_VERTEX)
+        shape.highlight_vertex(index=index, mode="move")
         self.hovered_shape = shape
         self._hovered_vertex = index
         self._hovered_edge = None
@@ -861,9 +861,7 @@ class Canvas(QtWidgets.QWidget):
     ) -> None:
         if self._hovered_vertex is not None:
             assert self.hovered_shape is not None
-            self.hovered_shape.highlight_vertex(
-                i=self._hovered_vertex, action=self.hovered_shape.MOVE_VERTEX
-            )
+            self.hovered_shape.highlight_vertex(index=self._hovered_vertex, mode="move")
             if self.deselect_shape():
                 self.update()
             return
