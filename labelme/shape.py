@@ -59,8 +59,6 @@ class Shape:
         self.points: list[QtCore.QPointF] = []
         self.point_labels: list[int] = []
         self.shape_type = shape_type
-        self._points_raw: list[QtCore.QPointF] = []
-        self._shape_type_raw = None
         self.fill = False
         self.selected = False
         self.visible = True
