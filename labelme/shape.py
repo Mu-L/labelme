@@ -380,13 +380,13 @@ def _paint_shape(*, painter: QtGui.QPainter, shape: Shape) -> None:
     painter.setPen(pen)
 
     if shape.shape_type == "mask" and shape.mask is not None:
-        _paint_mask(painter=painter, shape=shape)
+        _paint_shape_mask(painter=painter, shape=shape)
 
     if shape.points:
-        _paint_points(painter=painter, shape=shape)
+        _paint_shape_points(painter=painter, shape=shape)
 
 
-def _paint_mask(*, painter: QtGui.QPainter, shape: Shape) -> None:
+def _paint_shape_mask(*, painter: QtGui.QPainter, shape: Shape) -> None:
     assert shape.mask is not None
     fill = shape.select_fill_color if shape.selected else shape.fill_color
     image_to_draw = np.zeros(shape.mask.shape + (4,), dtype=np.uint8)
@@ -406,7 +406,7 @@ def _paint_mask(*, painter: QtGui.QPainter, shape: Shape) -> None:
     )
 
 
-def _paint_points(*, painter: QtGui.QPainter, shape: Shape) -> None:
+def _paint_shape_points(*, painter: QtGui.QPainter, shape: Shape) -> None:
     line_path = QtGui.QPainterPath()
     vrtx_path = QtGui.QPainterPath()
     negative_vrtx_path = QtGui.QPainterPath()
