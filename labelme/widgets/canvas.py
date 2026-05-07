@@ -510,12 +510,12 @@ class Canvas(QtWidgets.QWidget):
         ) + [s for s in reversed(self.shapes) if s.visible and s != self.hovered_shape]
 
         for shape in ordered_shapes:
-            index: int | None = shape.nearest_vertex(pos, self._epsilon)
-            if index is not None:
+            index_vertex: int | None = shape.nearest_vertex(pos, self._epsilon)
+            if index_vertex is not None:
                 self._set_highlight(
-                    hovered_shape=shape, hovered_edge=None, hovered_vertex=index
+                    hovered_shape=shape, hovered_edge=None, hovered_vertex=index_vertex
                 )
-                shape.highlight_vertex(index=index, mode="move")
+                shape.highlight_vertex(index=index_vertex, mode="move")
                 self._apply_cursor(CURSOR_POINT)
                 status_messages.append(self.tr("Click & drag to move point"))
                 if shape.can_remove_point():
