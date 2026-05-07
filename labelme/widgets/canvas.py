@@ -138,9 +138,6 @@ class Canvas(QtWidgets.QWidget):
         self.setMouseTracking(True)
         self.setFocusPolicy(Qt.WheelFocus)
 
-    def fill_drawing(self) -> bool:
-        return self._fill_drawing
-
     def set_fill_drawing(self, value: bool) -> None:
         self._fill_drawing = value
 
@@ -1085,8 +1082,8 @@ class Canvas(QtWidgets.QWidget):
         preview = self._build_preview_shape()
         if preview is None:
             return
-        preview.fill = self.fill_drawing()
-        preview.selected = self.fill_drawing()
+        preview.fill = self._fill_drawing
+        preview.selected = self._fill_drawing
         preview.paint(painter)
 
     def _build_preview_shape(self) -> Shape | None:
@@ -1100,7 +1097,7 @@ class Canvas(QtWidgets.QWidget):
 
     def _build_polygon_preview(self, current: Shape) -> Shape:
         preview: Shape = current.copy()
-        if not self.fill_drawing():
+        if not self._fill_drawing:
             return preview
         if len(preview.points) < 2:
             return preview
