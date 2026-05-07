@@ -247,9 +247,6 @@ class Canvas(QtWidgets.QWidget):
         self._release_cursor()
         self._update_status()
 
-    def is_shape_visible(self, shape: Shape) -> bool:
-        return shape.visible
-
     def drawing(self) -> bool:
         return self.mode == CanvasMode.CREATE
 
@@ -516,11 +513,7 @@ class Canvas(QtWidgets.QWidget):
     def _highlight_hover_shape(self, pos: QPointF, status_messages: list[str]) -> None:
         ordered_shapes: list[Shape] = (
             [self.hovered_shape] if self.hovered_shape else []
-        ) + [
-            s
-            for s in reversed(self.shapes)
-            if self.is_shape_visible(s) and s != self.hovered_shape
-        ]
+        ) + [s for s in reversed(self.shapes) if s.visible and s != self.hovered_shape]
 
         for shape in ordered_shapes:
             index: int | None = shape.nearest_vertex(pos, self.epsilon)
@@ -901,7 +894,7 @@ class Canvas(QtWidgets.QWidget):
 
     def _find_shape_at_point(self, point: QPointF) -> Shape | None:
         for shape in reversed(self.shapes):
-            if self.is_shape_visible(shape) and shape.contains_point(point):
+            if shape.visible and shape.contains_point(point):
                 return shape
         return None
 
@@ -1060,7 +1053,7 @@ class Canvas(QtWidgets.QWidget):
         for shape in self.shapes:
             if not _is_shape_paintable(
                 shape=shape,
-                visible=self.is_shape_visible(shape),
+                visible=shape.visible,
                 hide_background=self._hide_background,
             ):
                 continue

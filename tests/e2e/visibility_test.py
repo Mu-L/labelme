@@ -22,7 +22,7 @@ def test_toggle_all_shapes(
 
     assert len(canvas.shapes) == 5
     for shape in canvas.shapes:
-        assert canvas.is_shape_visible(shape)
+        assert shape.visible
 
     annotated_win.toggle_shape_visibility(False)
     qtbot.wait(50)
@@ -30,7 +30,7 @@ def test_toggle_all_shapes(
     for item in label_list:
         assert item.checkState() == Qt.Unchecked
     for shape in canvas.shapes:
-        assert not canvas.is_shape_visible(shape)
+        assert not shape.visible
 
     annotated_win.toggle_shape_visibility(True)
     qtbot.wait(50)
@@ -38,7 +38,7 @@ def test_toggle_all_shapes(
     for item in label_list:
         assert item.checkState() == Qt.Checked
     for shape in canvas.shapes:
-        assert canvas.is_shape_visible(shape)
+        assert shape.visible
 
     close_or_pause(qtbot=qtbot, widget=annotated_win, pause=pause)
 
@@ -57,15 +57,15 @@ def test_toggle_individual_shape(
     first_item = label_list[0]
     first_shape = first_item.shape()
     assert first_shape is not None
-    assert canvas.is_shape_visible(first_shape)
+    assert first_shape.visible
 
     first_item.setCheckState(Qt.Unchecked)
     qtbot.wait(50)
-    assert not canvas.is_shape_visible(first_shape)
+    assert not first_shape.visible
 
     first_item.setCheckState(Qt.Checked)
     qtbot.wait(50)
-    assert canvas.is_shape_visible(first_shape)
+    assert first_shape.visible
 
     close_or_pause(qtbot=qtbot, widget=annotated_win, pause=pause)
 
@@ -84,7 +84,7 @@ def test_visibility_preserved_when_undoing_unrelated_edit(
     hidden_index = 1
     label_list[hidden_index].setCheckState(Qt.Unchecked)
     qtbot.wait(50)
-    assert not canvas.is_shape_visible(canvas.shapes[hidden_index])
+    assert not canvas.shapes[hidden_index].visible
 
     canvas.shapes[0].points[0] += QPointF(5.0, 5.0)
     canvas.backup_shapes()
@@ -95,7 +95,7 @@ def test_visibility_preserved_when_undoing_unrelated_edit(
     assert len(canvas.shapes) == 5
     for i, shape in enumerate(canvas.shapes):
         expected_visible = i != hidden_index
-        assert canvas.is_shape_visible(shape) is expected_visible
+        assert shape.visible is expected_visible
         expected_state = Qt.Checked if expected_visible else Qt.Unchecked
         assert label_list[i].checkState() == expected_state
 
@@ -116,7 +116,7 @@ def test_undo_recovers_accidental_hide(
 
     label_list[hidden_index].setCheckState(Qt.Unchecked)
     qtbot.wait(50)
-    assert not canvas.is_shape_visible(canvas.shapes[hidden_index])
+    assert not canvas.shapes[hidden_index].visible
     assert annotated_win._actions.undo.isEnabled()
 
     annotated_win._actions.undo.trigger()
@@ -124,7 +124,7 @@ def test_undo_recovers_accidental_hide(
 
     assert len(canvas.shapes) == 5
     for i, shape in enumerate(canvas.shapes):
-        assert canvas.is_shape_visible(shape)
+        assert shape.visible
         assert label_list[i].checkState() == Qt.Checked
 
     close_or_pause(qtbot=qtbot, widget=annotated_win, pause=pause)
@@ -155,17 +155,17 @@ def test_multi_select_toggle_propagates(
 
     for i in range(len(canvas.shapes)):
         if i in selected_indices:
-            assert not canvas.is_shape_visible(canvas.shapes[i])
+            assert not canvas.shapes[i].visible
             assert label_list[i].checkState() == Qt.Unchecked
         else:
-            assert canvas.is_shape_visible(canvas.shapes[i])
+            assert canvas.shapes[i].visible
             assert label_list[i].checkState() == Qt.Checked
 
     annotated_win._actions.undo.trigger()
     qtbot.wait(50)
 
     for i in range(len(canvas.shapes)):
-        assert canvas.is_shape_visible(canvas.shapes[i])
+        assert canvas.shapes[i].visible
         assert label_list[i].checkState() == Qt.Checked
 
     close_or_pause(qtbot=qtbot, widget=annotated_win, pause=pause)
@@ -199,7 +199,7 @@ def test_multi_select_preserves_selection_after_checkbox_click(
     }
     for i in selected_indices:
         assert label_list[i].checkState() == Qt.Unchecked
-        assert not canvas.is_shape_visible(canvas.shapes[i])
+        assert not canvas.shapes[i].visible
 
     close_or_pause(qtbot=qtbot, widget=annotated_win, pause=pause)
 
