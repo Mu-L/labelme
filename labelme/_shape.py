@@ -3,10 +3,10 @@ from __future__ import annotations
 from collections.abc import Iterable
 
 from PyQt5 import QtCore
+from PyQt5 import QtGui
 
 from . import utils
 from .shape import Shape
-from .shape import _make_shape_path
 
 
 def _argmin(values: Iterable[float]) -> tuple[int, float] | None:
@@ -63,11 +63,42 @@ def contains_point(*, shape: Shape, point: QtCore.QPointF) -> bool:
         ):
             return False
         return bool(shape.mask[raw_y, raw_x])
-    return _make_shape_path(shape_type=shape.shape_type, points=shape.points).contains(
-        point
-    )
+    return _build_path(shape=shape).contains(point)
 
 
 def bounds(*, shape: Shape) -> QtCore.QRectF:
-    path = _make_shape_path(shape_type=shape.shape_type, points=shape.points)
-    return path.boundingRect()
+    return _build_path(shape=shape).boundingRect()
+
+
+def _build_path_rectangle(*, points: list[QtCore.QPointF]) -> QtGui.QPainterPath:
+    out = QtGui.QPainterPath()
+    if len(points) == 2:
+        out.addRect(QtCore.QRectF(points[0], points[1]))
+    return out
+
+
+def _build_path_circle(*, points: list[QtCore.QPointF]) -> QtGui.QPainterPath:
+    out = QtGui.QPainterPath()
+    if len(points) == 2:
+        radius = utils.distance(points[0] - points[1])
+        out.addEllipse(points[0], radius, radius)
+    return out
+
+
+def _build_path_polyline(*, points: list[QtCore.QPointF]) -> QtGui.QPainterPath:
+    out = QtGui.QPainterPath()
+    if not points:
+        return out
+    out.moveTo(points[0])
+    for vertex in points[1:]:
+        out.lineTo(vertex)
+    return out
+
+
+def _build_path(*, shape: Shape) -> QtGui.QPainterPath:
+    build_path_fn = {
+        "rectangle": _build_path_rectangle,
+        "mask": _build_path_rectangle,
+        "circle": _build_path_circle,
+    }.get(shape.shape_type, _build_path_polyline)
+    return build_path_fn(points=shape.points)
