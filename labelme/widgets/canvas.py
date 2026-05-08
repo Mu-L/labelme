@@ -19,6 +19,7 @@ from PyQt5.QtCore import QRectF
 from PyQt5.QtCore import Qt
 
 import labelme.utils
+from labelme import _shape
 from labelme._automation import AiOutputFormat
 from labelme._automation import Detection
 from labelme._automation import OsamSession
@@ -510,7 +511,9 @@ class Canvas(QtWidgets.QWidget):
         ) + [s for s in reversed(self.shapes) if s.visible and s != self.hovered_shape]
 
         for shape in ordered_shapes:
-            index_vertex: int | None = shape.nearest_vertex(pos, self._epsilon)
+            index_vertex: int | None = _shape.nearest_vertex_index(
+                shape=shape, point=pos, epsilon=self._epsilon
+            )
             if index_vertex is not None:
                 self._set_highlight(
                     hovered_shape=shape, hovered_edge=None, hovered_vertex=index_vertex
@@ -526,7 +529,9 @@ class Canvas(QtWidgets.QWidget):
                 return
 
         for shape in ordered_shapes:
-            index_edge: int | None = shape.nearest_edge(pos, self._epsilon)
+            index_edge: int | None = _shape.nearest_edge_index(
+                shape=shape, point=pos, epsilon=self._epsilon
+            )
             if index_edge is not None and shape.can_add_point():
                 self._set_highlight(
                     hovered_shape=shape, hovered_edge=index_edge, hovered_vertex=None
@@ -537,7 +542,7 @@ class Canvas(QtWidgets.QWidget):
                 return
 
         for shape in ordered_shapes:
-            if shape.contains_point(pos):
+            if _shape.contains_point(shape=shape, point=pos):
                 self._set_highlight(
                     hovered_shape=shape, hovered_edge=None, hovered_vertex=None
                 )
@@ -888,7 +893,7 @@ class Canvas(QtWidgets.QWidget):
 
     def _find_shape_at_point(self, point: QPointF) -> Shape | None:
         for shape in reversed(self.shapes):
-            if shape.visible and shape.contains_point(point):
+            if shape.visible and _shape.contains_point(shape=shape, point=point):
                 return shape
         return None
 
@@ -896,9 +901,9 @@ class Canvas(QtWidgets.QWidget):
         if not self.selected_shapes:
             self._drag_anchor = (QPointF(), QRectF())
             return
-        bounds = self.selected_shapes[0].bounds()
+        bounds = _shape.bounds(shape=self.selected_shapes[0])
         for s in self.selected_shapes[1:]:
-            bounds = bounds.united(s.bounds())
+            bounds = bounds.united(_shape.bounds(shape=s))
         self._drag_anchor = (bounds.topLeft() - click, bounds)
 
     def _bounded_move_vertex(

@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import copy
 import dataclasses
-from collections.abc import Iterable
 from typing import Any
 from typing import Final
 from typing import Literal
@@ -166,29 +165,6 @@ class Shape:
     def paint(self, painter: QtGui.QPainter) -> None:
         _paint_shape(painter=painter, shape=self)
 
-    def nearest_vertex(self, point: QtCore.QPointF, epsilon: float) -> int | None:
-        return _nearest_vertex_index(
-            point=point, points=self.points, scale=self.scale, epsilon=epsilon
-        )
-
-    def nearest_edge(self, point: QtCore.QPointF, epsilon: float) -> int | None:
-        return _nearest_edge_index(
-            point=point, points=self.points, scale=self.scale, epsilon=epsilon
-        )
-
-    def contains_point(self, point: QtCore.QPointF) -> bool:
-        return _shape_contains_point(
-            point=point,
-            shape_type=self.shape_type,
-            points=self.points,
-            mask=self.mask,
-            point_size=self.point_size,
-        )
-
-    def bounds(self) -> QtCore.QRectF:
-        path = _make_shape_path(shape_type=self.shape_type, points=self.points)
-        return path.boundingRect()
-
     def move_vertex(self, i: int, pos: QtCore.QPointF) -> None:
         self.points[i] = pos
 
@@ -213,10 +189,6 @@ class Shape:
 
     def __setitem__(self, key: int, value: QtCore.QPointF) -> None:
         self.points[key] = value
-
-
-def _scale_point(*, point: QtCore.QPointF, scale: float) -> QtCore.QPointF:
-    return QtCore.QPointF(point.x() * scale, point.y() * scale)
 
 
 def _build_rectangle_path(*, points: list[QtCore.QPointF]) -> QtGui.QPainterPath:
@@ -262,70 +234,6 @@ def _make_shape_path(
     return builder(points=points)
 
 
-def _argmin(values: Iterable[float]) -> tuple[int, float] | None:
-    return min(enumerate(values), key=lambda item: item[1], default=None)
-
-
-def _nearest_vertex_index(
-    *,
-    point: QtCore.QPointF,
-    points: list[QtCore.QPointF],
-    scale: float,
-    epsilon: float,
-) -> int | None:
-    scaled_point = _scale_point(point=point, scale=scale)
-    nearest = _argmin(
-        labelme.utils.distance(_scale_point(point=p, scale=scale) - scaled_point)
-        for p in points
-    )
-    if nearest is None or nearest[1] > epsilon:
-        return None
-    return nearest[0]
-
-
-def _nearest_edge_index(
-    *,
-    point: QtCore.QPointF,
-    points: list[QtCore.QPointF],
-    scale: float,
-    epsilon: float,
-) -> int | None:
-    scaled_point = _scale_point(point=point, scale=scale)
-    scaled_points = [_scale_point(point=p, scale=scale) for p in points]
-    nearest = _argmin(
-        labelme.utils.distance_to_line(
-            scaled_point, (scaled_points[i - 1], scaled_points[i])
-        )
-        for i in range(len(points))
-    )
-    if nearest is None or nearest[1] > epsilon:
-        return None
-    return nearest[0]
-
-
-def _shape_contains_point(
-    *,
-    point: QtCore.QPointF,
-    shape_type: str,
-    points: list[QtCore.QPointF],
-    mask: npt.NDArray[np.bool_] | None,
-    point_size: int,
-) -> bool:
-    if shape_type in ["line", "linestrip", "points"]:
-        return False
-    if shape_type == "point":
-        if not points:
-            return False
-        return labelme.utils.distance(point - points[0]) <= point_size / 2
-    if mask is not None:
-        raw_y = int(round(point.y() - points[0].y()))
-        raw_x = int(round(point.x() - points[0].x()))
-        if raw_y < 0 or raw_y >= mask.shape[0] or raw_x < 0 or raw_x >= mask.shape[1]:
-            return False
-        return bool(mask[raw_y, raw_x])
-    return _make_shape_path(shape_type=shape_type, points=points).contains(point)
-
-
 def _mask_contour_path(
     *,
     mask: npt.NDArray[np.bool_],
@@ -336,15 +244,9 @@ def _mask_contour_path(
     output = QtGui.QPainterPath()
     for contour in contours:
         contour = contour + [origin.y(), origin.x()]
-        output.moveTo(
-            _scale_point(
-                point=QtCore.QPointF(contour[0, 1], contour[0, 0]), scale=scale
-            )
-        )
+        output.moveTo(QtCore.QPointF(contour[0, 1], contour[0, 0]) * scale)
         for point in contour[1:]:
-            output.lineTo(
-                _scale_point(point=QtCore.QPointF(point[1], point[0]), scale=scale)
-            )
+            output.lineTo(QtCore.QPointF(point[1], point[0]) * scale)
     return output
 
 
@@ -359,7 +261,7 @@ def _add_shape_vertex(
         size = shape.point_size
         point_type = shape.point_type
 
-    pos = _scale_point(point=shape.points[vertex_index], scale=shape.scale)
+    pos = shape.points[vertex_index] * shape.scale
 
     half = size / 2.0
     if point_type == _P_SQUARE:
@@ -393,7 +295,7 @@ def _paint_shape_mask(*, painter: QtGui.QPainter, shape: Shape) -> None:
     image_to_draw[shape.mask] = fill.getRgb()
     qimage = QtGui.QImage.fromData(labelme.utils.img_arr_to_data(image_to_draw))
     origin = shape.points[0]
-    target_top_left = _scale_point(point=origin, scale=shape.scale)
+    target_top_left = origin * shape.scale
     target_rect = QtCore.QRectF(
         target_top_left.x(),
         target_top_left.y(),
@@ -451,8 +353,8 @@ def _build_shape_paths(
         if len(shape.points) == 2:
             path_line.addRect(
                 QtCore.QRectF(
-                    _scale_point(point=shape.points[0], scale=shape.scale),
-                    _scale_point(point=shape.points[1], scale=shape.scale),
+                    shape.points[0] * shape.scale,
+                    shape.points[1] * shape.scale,
                 )
             )
         if shape.shape_type == "rectangle":
@@ -462,17 +364,15 @@ def _build_shape_paths(
         assert len(shape.points) in [1, 2]
         if len(shape.points) == 2:
             radius = labelme.utils.distance(
-                _scale_point(point=shape.points[0] - shape.points[1], scale=shape.scale)
+                (shape.points[0] - shape.points[1]) * shape.scale
             )
-            path_line.addEllipse(
-                _scale_point(point=shape.points[0], scale=shape.scale), radius, radius
-            )
+            path_line.addEllipse(shape.points[0] * shape.scale, radius, radius)
         for i in range(len(shape.points)):
             _add_shape_vertex(path_vertices, shape=shape, vertex_index=i)
     elif shape.shape_type == "linestrip":
-        path_line.moveTo(_scale_point(point=shape.points[0], scale=shape.scale))
+        path_line.moveTo(shape.points[0] * shape.scale)
         for i, p in enumerate(shape.points):
-            path_line.lineTo(_scale_point(point=p, scale=shape.scale))
+            path_line.lineTo(p * shape.scale)
             _add_shape_vertex(path_vertices, shape=shape, vertex_index=i)
     elif shape.shape_type == "points":
         assert len(shape.points) == len(shape.point_labels)
@@ -480,9 +380,9 @@ def _build_shape_paths(
             target = path_vertices if point_label == 1 else path_negative_vertices
             _add_shape_vertex(target, shape=shape, vertex_index=i)
     else:
-        path_line.moveTo(_scale_point(point=shape.points[0], scale=shape.scale))
+        path_line.moveTo(shape.points[0] * shape.scale)
         for i, p in enumerate(shape.points):
-            path_line.lineTo(_scale_point(point=p, scale=shape.scale))
+            path_line.lineTo(p * shape.scale)
             _add_shape_vertex(path_vertices, shape=shape, vertex_index=i)
         if shape.is_closed():
-            path_line.lineTo(_scale_point(point=shape.points[0], scale=shape.scale))
+            path_line.lineTo(shape.points[0] * shape.scale)
