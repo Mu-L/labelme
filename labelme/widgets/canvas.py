@@ -1057,18 +1057,18 @@ class Canvas(QtWidgets.QWidget):
             ):
                 continue
             shape.fill = _is_shape_filled(shape=shape, hovered_shape=self.hovered_shape)
-            shape.paint(painter)
+            _shape.paint(shape=shape, painter=painter)
 
     def _draw_active_shape_layer(self, painter: QtGui.QPainter) -> None:
         if self._current is None:
             return
-        self._current.paint(painter)
+        _shape.paint(shape=self._current, painter=painter)
         assert len(self._line.points) == len(self._line.point_labels)
-        self._line.paint(painter)
+        _shape.paint(shape=self._line, painter=painter)
 
     def _draw_drag_copy_layer(self, painter: QtGui.QPainter) -> None:
         for copy_shape in self._selected_shapes_copy:
-            copy_shape.paint(painter)
+            _shape.paint(shape=copy_shape, painter=painter)
 
     def _draw_preview_overlay_layer(self, painter: QtGui.QPainter) -> None:
         preview = self._build_preview_shape()
@@ -1076,7 +1076,7 @@ class Canvas(QtWidgets.QWidget):
             return
         preview.fill = self._fill_drawing
         preview.selected = self._fill_drawing
-        preview.paint(painter)
+        _shape.paint(shape=preview, painter=painter)
 
     def _build_preview_shape(self) -> Shape | None:
         if self._current is None:
