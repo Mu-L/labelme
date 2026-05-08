@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import copy
 import dataclasses
+import typing
 from typing import Any
 from typing import Final
 from typing import Literal
@@ -11,9 +12,6 @@ import numpy.typing as npt
 from loguru import logger
 from PyQt5 import QtCore
 from PyQt5 import QtGui
-
-_P_SQUARE: Final[int] = 0
-_P_ROUND: Final[int] = 1
 
 POLYLINE_SHAPE_TYPES: Final[tuple[str, ...]] = ("polygon", "linestrip")
 
@@ -31,11 +29,14 @@ class _VertexHighlight:
         }[self.mode]
 
     @property
-    def point_type(self) -> int:
-        return {
-            "move": _P_SQUARE,
-            "near": _P_ROUND,
-        }[self.mode]
+    def point_type(self) -> Literal["square", "round"]:
+        match self.mode:
+            case "move":
+                return "square"
+            case "near":
+                return "round"
+            case _:
+                typing.assert_never(self.mode)
 
 
 class Shape:
@@ -48,7 +49,7 @@ class Shape:
     select_fill_color: QtGui.QColor = QtGui.QColor(0, 255, 0, 64)
     hvertex_fill_color: QtGui.QColor = QtGui.QColor(255, 255, 255, 255)
 
-    point_type: int = _P_ROUND
+    point_type: Literal["square", "round"] = "round"
     point_size: int = 8
     scale: float = 1.0
 

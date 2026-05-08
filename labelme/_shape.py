@@ -9,8 +9,6 @@ from PyQt5 import QtCore
 from PyQt5 import QtGui
 
 from . import utils
-from .shape import _P_ROUND
-from .shape import _P_SQUARE
 from .shape import Shape
 
 
@@ -210,9 +208,9 @@ def _build_shape_point_path(
     pos = shape.points[vertex_index] * shape.scale
 
     half = size / 2.0
-    if point_type == _P_SQUARE:
+    if point_type == "square":
         path.addRect(pos.x() - half, pos.y() - half, size, size)
-    elif point_type == _P_ROUND:
+    elif point_type == "round":
         path.addEllipse(pos, half, half)
     else:
         raise ValueError(f"Unsupported vertex shape: {point_type}")
