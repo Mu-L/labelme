@@ -348,25 +348,19 @@ def _mask_contour_path(
     return output
 
 
-def _vertex_size_and_type(
-    *,
-    base_size: int,
-    base_type: int,
-    highlight: _VertexHighlight | None,
-    vertex_index: int,
-) -> tuple[float, int]:
-    if highlight is not None and highlight.index == vertex_index:
-        return base_size * highlight.size_factor, highlight.point_type
-    return base_size, base_type
-
-
-def _add_vertex_to_path(
-    path: QtGui.QPainterPath,
-    *,
-    pos: QtCore.QPointF,
-    size: float,
-    point_type: int,
+def _add_shape_vertex(
+    path: QtGui.QPainterPath, *, shape: Shape, vertex_index: int
 ) -> None:
+    highlight = shape.highlight
+    if highlight is not None and highlight.index == vertex_index:
+        size = shape.point_size * highlight.size_factor
+        point_type = highlight.point_type
+    else:
+        size = shape.point_size
+        point_type = shape.point_type
+
+    pos = _scale_point(point=shape.points[vertex_index], scale=shape.scale)
+
     half = size / 2.0
     if point_type == _P_SQUARE:
         path.addRect(pos.x() - half, pos.y() - half, size, size)
@@ -374,19 +368,6 @@ def _add_vertex_to_path(
         path.addEllipse(pos, half, half)
     else:
         raise ValueError(f"Unsupported vertex shape: {point_type}")
-
-
-def _add_shape_vertex(
-    path: QtGui.QPainterPath, *, shape: Shape, vertex_index: int
-) -> None:
-    size, point_type = _vertex_size_and_type(
-        base_size=shape.point_size,
-        base_type=shape.point_type,
-        highlight=shape.highlight,
-        vertex_index=vertex_index,
-    )
-    pos = _scale_point(point=shape.points[vertex_index], scale=shape.scale)
-    _add_vertex_to_path(path, pos=pos, size=size, point_type=point_type)
 
 
 def _paint_shape(*, painter: QtGui.QPainter, shape: Shape) -> None:
@@ -399,13 +380,13 @@ def _paint_shape(*, painter: QtGui.QPainter, shape: Shape) -> None:
     painter.setPen(pen)
 
     if shape.shape_type == "mask" and shape.mask is not None:
-        _paint_mask(painter=painter, shape=shape)
+        _paint_shape_mask(painter=painter, shape=shape)
 
     if shape.points:
-        _paint_points(painter=painter, shape=shape)
+        _paint_shape_points(painter=painter, shape=shape)
 
 
-def _paint_mask(*, painter: QtGui.QPainter, shape: Shape) -> None:
+def _paint_shape_mask(*, painter: QtGui.QPainter, shape: Shape) -> None:
     assert shape.mask is not None
     fill = shape.select_fill_color if shape.selected else shape.fill_color
     image_to_draw = np.zeros(shape.mask.shape + (4,), dtype=np.uint8)
@@ -425,50 +406,50 @@ def _paint_mask(*, painter: QtGui.QPainter, shape: Shape) -> None:
     )
 
 
-def _paint_points(*, painter: QtGui.QPainter, shape: Shape) -> None:
-    line_path = QtGui.QPainterPath()
-    vrtx_path = QtGui.QPainterPath()
-    negative_vrtx_path = QtGui.QPainterPath()
+def _paint_shape_points(*, painter: QtGui.QPainter, shape: Shape) -> None:
+    path_line = QtGui.QPainterPath()
+    path_vertices = QtGui.QPainterPath()
+    path_negative_vertices = QtGui.QPainterPath()
 
     _build_shape_paths(
         shape=shape,
-        line_path=line_path,
-        vrtx_path=vrtx_path,
-        negative_vrtx_path=negative_vrtx_path,
+        path_line=path_line,
+        path_vertices=path_vertices,
+        path_negative_vertices=path_negative_vertices,
     )
 
-    painter.drawPath(line_path)
-    if vrtx_path.length() > 0:
+    painter.drawPath(path_line)
+    if path_vertices.length() > 0:
         vertex_fill = (
             shape.vertex_fill_color
             if shape.highlight is None
             else shape.hvertex_fill_color
         )
-        painter.drawPath(vrtx_path)
-        painter.fillPath(vrtx_path, vertex_fill)
+        painter.drawPath(path_vertices)
+        painter.fillPath(path_vertices, vertex_fill)
     if shape.fill and shape.shape_type not in ["line", "linestrip", "points", "mask"]:
         fill = shape.select_fill_color if shape.selected else shape.fill_color
-        painter.fillPath(line_path, fill)
+        painter.fillPath(path_line, fill)
 
     neg_color = QtGui.QColor(255, 0, 0, 255)
     neg_pen = QtGui.QPen(neg_color)
     neg_pen.setWidth(shape.PEN_WIDTH)
     painter.setPen(neg_pen)
-    painter.drawPath(negative_vrtx_path)
-    painter.fillPath(negative_vrtx_path, neg_color)
+    painter.drawPath(path_negative_vertices)
+    painter.fillPath(path_negative_vertices, neg_color)
 
 
 def _build_shape_paths(
     *,
     shape: Shape,
-    line_path: QtGui.QPainterPath,
-    vrtx_path: QtGui.QPainterPath,
-    negative_vrtx_path: QtGui.QPainterPath,
+    path_line: QtGui.QPainterPath,
+    path_vertices: QtGui.QPainterPath,
+    path_negative_vertices: QtGui.QPainterPath,
 ) -> None:
     if shape.shape_type in ["rectangle", "mask"]:
         assert len(shape.points) in [1, 2]
         if len(shape.points) == 2:
-            line_path.addRect(
+            path_line.addRect(
                 QtCore.QRectF(
                     _scale_point(point=shape.points[0], scale=shape.scale),
                     _scale_point(point=shape.points[1], scale=shape.scale),
@@ -476,32 +457,32 @@ def _build_shape_paths(
             )
         if shape.shape_type == "rectangle":
             for i in range(len(shape.points)):
-                _add_shape_vertex(vrtx_path, shape=shape, vertex_index=i)
+                _add_shape_vertex(path_vertices, shape=shape, vertex_index=i)
     elif shape.shape_type == "circle":
         assert len(shape.points) in [1, 2]
         if len(shape.points) == 2:
             radius = labelme.utils.distance(
                 _scale_point(point=shape.points[0] - shape.points[1], scale=shape.scale)
             )
-            line_path.addEllipse(
+            path_line.addEllipse(
                 _scale_point(point=shape.points[0], scale=shape.scale), radius, radius
             )
         for i in range(len(shape.points)):
-            _add_shape_vertex(vrtx_path, shape=shape, vertex_index=i)
+            _add_shape_vertex(path_vertices, shape=shape, vertex_index=i)
     elif shape.shape_type == "linestrip":
-        line_path.moveTo(_scale_point(point=shape.points[0], scale=shape.scale))
+        path_line.moveTo(_scale_point(point=shape.points[0], scale=shape.scale))
         for i, p in enumerate(shape.points):
-            line_path.lineTo(_scale_point(point=p, scale=shape.scale))
-            _add_shape_vertex(vrtx_path, shape=shape, vertex_index=i)
+            path_line.lineTo(_scale_point(point=p, scale=shape.scale))
+            _add_shape_vertex(path_vertices, shape=shape, vertex_index=i)
     elif shape.shape_type == "points":
         assert len(shape.points) == len(shape.point_labels)
         for i, point_label in enumerate(shape.point_labels):
-            target = vrtx_path if point_label == 1 else negative_vrtx_path
+            target = path_vertices if point_label == 1 else path_negative_vertices
             _add_shape_vertex(target, shape=shape, vertex_index=i)
     else:
-        line_path.moveTo(_scale_point(point=shape.points[0], scale=shape.scale))
+        path_line.moveTo(_scale_point(point=shape.points[0], scale=shape.scale))
         for i, p in enumerate(shape.points):
-            line_path.lineTo(_scale_point(point=p, scale=shape.scale))
-            _add_shape_vertex(vrtx_path, shape=shape, vertex_index=i)
+            path_line.lineTo(_scale_point(point=p, scale=shape.scale))
+            _add_shape_vertex(path_vertices, shape=shape, vertex_index=i)
         if shape.is_closed():
-            line_path.lineTo(_scale_point(point=shape.points[0], scale=shape.scale))
+            path_line.lineTo(_scale_point(point=shape.points[0], scale=shape.scale))
