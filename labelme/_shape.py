@@ -81,6 +81,7 @@ class Shape:
         self.mask = mask
         self._closed = False
         self.highlight: _VertexHighlight | None = None
+        self.rotation_highlight: _VertexHighlight | None = None
 
         if line_color is not None:
             # Per-instance line color override (used for the pending line).
@@ -97,6 +98,7 @@ class Shape:
         if value not in [
             "polygon",
             "rectangle",
+            "oriented_rectangle",
             "point",
             "line",
             "circle",
@@ -172,9 +174,17 @@ class Shape:
 
     def highlight_vertex(self, index: int, mode: Literal["move", "near"]) -> None:
         self.highlight = _VertexHighlight(index=index, mode=mode)
+        self.rotation_highlight = None
+
+    def highlight_rotation_point(
+        self, index: int, mode: Literal["move", "near"]
+    ) -> None:
+        self.rotation_highlight = _VertexHighlight(index=index, mode=mode)
+        self.highlight = None
 
     def clear_highlight(self) -> None:
         self.highlight = None
+        self.rotation_highlight = None
 
     def copy(self) -> Shape:
         return copy.deepcopy(self)
@@ -214,6 +224,87 @@ def nearest_edge_index(
     if nearest is None or nearest[1] > epsilon:
         return None
     return nearest[0]
+
+
+def nearest_rotation_point_index(
+    *,
+    shape: Shape,
+    point: QtCore.QPointF,
+    epsilon: float,
+) -> int | None:
+    if shape.shape_type != "oriented_rectangle" or len(shape.points) != 4:
+        return None
+    scaled_point = point * shape.scale
+    nearest = _argmin(
+        utils.distance(
+            get_rotation_handle(shape=shape, index=i) * shape.scale - scaled_point
+        )
+        for i in range(len(shape.points))
+    )
+    if nearest is None or nearest[1] > epsilon:
+        return None
+    return nearest[0]
+
+
+def get_rotation_handle(*, shape: Shape, index: int) -> QtCore.QPointF:
+    if shape.shape_type != "oriented_rectangle" or len(shape.points) != 4:
+        raise ValueError(
+            "Rotation handles are only defined for 4-point oriented rectangles, "
+            f"got shape_type={shape.shape_type!r}, len(points)={len(shape.points)}"
+        )
+    return (shape.points[index] + shape.points[index - 1]) / 2
+
+
+def oriented_rectangle_center(*, shape: Shape) -> QtCore.QPointF:
+    if shape.shape_type != "oriented_rectangle":
+        raise ValueError(
+            f"Center is only defined for oriented rectangles, got {shape.shape_type!r}"
+        )
+    if len(shape.points) != 4:
+        raise ValueError(
+            f"Oriented rectangle center requires 4 points, got {len(shape.points)}"
+        )
+    return (shape.points[0] + shape.points[2]) / 2
+
+
+def rotate(
+    *,
+    shape: Shape,
+    center: QtCore.QPointF,
+    angle: float,
+    source_points: list[QtCore.QPointF] | None = None,
+) -> None:
+    if shape.shape_type != "oriented_rectangle":
+        raise ValueError(
+            "Shape rotation is only supported for oriented rectangles, "
+            f"got {shape.shape_type!r}"
+        )
+    points = source_points if source_points is not None else list(shape.points)
+    if len(points) != 4 or len(shape.points) != 4:
+        raise ValueError(
+            "Shape rotation requires 4 points, got "
+            f"len(source_points)={len(points)}, len(shape.points)={len(shape.points)}"
+        )
+    cx, cy = center.x(), center.y()
+    for i, p in enumerate(points):
+        rotated = _rotate_point_around_origin(
+            point=np.array([p.x() - cx, p.y() - cy]), angle=angle
+        )
+        shape.move_vertex(
+            i=i,
+            pos=QtCore.QPointF(float(rotated[0] + cx), float(rotated[1] + cy)),
+        )
+
+
+def _rotate_point_around_origin(
+    *,
+    point: npt.NDArray[np.floating],
+    angle: float,
+) -> npt.NDArray[np.floating]:
+    cos_a = np.cos(angle)
+    sin_a = np.sin(angle)
+    rotation = np.array([[cos_a, -sin_a], [sin_a, cos_a]])
+    return rotation @ point
 
 
 def contains_point(*, shape: Shape, point: QtCore.QPointF) -> bool:
@@ -266,11 +357,25 @@ def _build_path_polyline(*, points: list[QtCore.QPointF]) -> QtGui.QPainterPath:
     return out
 
 
+def _build_path_oriented_rectangle(
+    *, points: list[QtCore.QPointF]
+) -> QtGui.QPainterPath:
+    out = QtGui.QPainterPath()
+    if len(points) != 4:
+        return out
+    out.moveTo(points[0])
+    for vertex in points[1:]:
+        out.lineTo(vertex)
+    out.lineTo(points[0])
+    return out
+
+
 def _build_path(*, shape: Shape) -> QtGui.QPainterPath:
     build_path_fn = {
         "rectangle": _build_path_rectangle,
         "mask": _build_path_rectangle,
         "circle": _build_path_circle,
+        "oriented_rectangle": _build_path_oriented_rectangle,
     }.get(shape.shape_type, _build_path_polyline)
     return build_path_fn(points=shape.points)
 
@@ -318,12 +423,16 @@ def _paint_shape_points(*, painter: QtGui.QPainter, shape: Shape) -> None:
     path_line = QtGui.QPainterPath()
     path_vertices = QtGui.QPainterPath()
     path_negative_vertices = QtGui.QPainterPath()
+    path_rotation_vertices = QtGui.QPainterPath()
+    path_orientation_arrow = QtGui.QPainterPath()
 
     _build_shape_points_paths(
         shape=shape,
         path_line=path_line,
         path_vertices=path_vertices,
         path_negative_vertices=path_negative_vertices,
+        path_rotation_vertices=path_rotation_vertices,
+        path_orientation_arrow=path_orientation_arrow,
     )
 
     painter.drawPath(path_line)
@@ -335,9 +444,22 @@ def _paint_shape_points(*, painter: QtGui.QPainter, shape: Shape) -> None:
         )
         painter.drawPath(path_vertices)
         painter.fillPath(path_vertices, vertex_fill)
+    if path_rotation_vertices.length() > 0:
+        rotation_fill = (
+            shape.vertex_fill_color
+            if shape.rotation_highlight is None
+            else shape.hvertex_fill_color
+        )
+        painter.drawPath(path_rotation_vertices)
+        painter.fillPath(path_rotation_vertices, rotation_fill)
     if shape.fill and shape.shape_type not in ["line", "linestrip", "points", "mask"]:
         fill = shape.select_fill_color if shape.selected else shape.fill_color
         painter.fillPath(path_line, fill)
+    if path_orientation_arrow.length() > 0:
+        arrow_pen = QtGui.QPen(shape.vertex_fill_color)
+        arrow_pen.setWidth(shape.PEN_WIDTH)
+        painter.setPen(arrow_pen)
+        painter.drawPath(path_orientation_arrow)
 
     neg_color = QtGui.QColor(255, 0, 0, 255)
     neg_pen = QtGui.QPen(neg_color)
@@ -375,6 +497,32 @@ def _build_shape_point_path(
 
     pos = shape.points[vertex_index] * shape.scale
 
+    _draw_vertex(path=path, pos=pos, size=size, point_type=point_type)
+
+
+def _build_shape_rotation_point_path(
+    *, path: QtGui.QPainterPath, shape: Shape, vertex_index: int
+) -> None:
+    highlight = shape.rotation_highlight
+    if highlight is not None and highlight.index == vertex_index:
+        size = shape.point_size * highlight.size_factor
+        point_type = highlight.point_type
+    else:
+        size = shape.point_size
+        point_type = shape.point_type
+
+    pos = get_rotation_handle(shape=shape, index=vertex_index) * shape.scale
+
+    _draw_vertex(path=path, pos=pos, size=size, point_type=point_type)
+
+
+def _draw_vertex(
+    *,
+    path: QtGui.QPainterPath,
+    pos: QtCore.QPointF,
+    size: float,
+    point_type: Literal["square", "round"],
+) -> None:
     half = size / 2.0
     if point_type == "square":
         path.addRect(pos.x() - half, pos.y() - half, size, size)
@@ -384,12 +532,39 @@ def _build_shape_point_path(
         raise ValueError(f"Unsupported vertex shape: {point_type}")
 
 
+def _build_shape_oriented_rectangle_arrow_path(
+    *, path: QtGui.QPainterPath, shape: Shape
+) -> None:
+    ARROW_HALF_LENGTH: Final[float] = 5.0
+    ARROW_HEAD_BACK_OFFSET: Final[float] = 0.22
+    local_points = [
+        np.array([ARROW_HEAD_BACK_OFFSET, -0.5]) * ARROW_HALF_LENGTH,
+        np.array([1.0, 0.0]) * ARROW_HALF_LENGTH,
+        np.array([ARROW_HEAD_BACK_OFFSET, 0.5]) * ARROW_HALF_LENGTH,
+        np.array([-1.0, 0.0]) * ARROW_HALF_LENGTH,
+    ]
+    center = oriented_rectangle_center(shape=shape)
+    angle = utils.direction_angle(start=shape.points[0], end=shape.points[1])
+    rotated = [_rotate_point_around_origin(point=p, angle=angle) for p in local_points]
+    translated = np.add(rotated, [center.x(), center.y()])
+    head_right, tip, head_left, tail = (
+        QtCore.QPointF(float(p[0]), float(p[1])) * shape.scale for p in translated
+    )
+    path.moveTo(head_right)
+    path.lineTo(tip)
+    path.lineTo(head_left)
+    path.moveTo(tail)
+    path.lineTo(tip)
+
+
 def _build_shape_points_paths(
     *,
     shape: Shape,
     path_line: QtGui.QPainterPath,
     path_vertices: QtGui.QPainterPath,
     path_negative_vertices: QtGui.QPainterPath,
+    path_rotation_vertices: QtGui.QPainterPath,
+    path_orientation_arrow: QtGui.QPainterPath,
 ) -> None:
     if shape.shape_type in ["rectangle", "mask"]:
         assert len(shape.points) in [1, 2]
@@ -402,6 +577,26 @@ def _build_shape_points_paths(
             )
         if shape.shape_type == "rectangle":
             for i in range(len(shape.points)):
+                _build_shape_point_path(path=path_vertices, shape=shape, vertex_index=i)
+    elif shape.shape_type == "oriented_rectangle":
+        assert len(shape.points) in [1, 2, 4]
+        if len(shape.points) == 4:
+            path_line.moveTo(shape.points[0] * shape.scale)
+            for i, p in enumerate(shape.points):
+                path_line.lineTo(p * shape.scale)
+                _build_shape_point_path(path=path_vertices, shape=shape, vertex_index=i)
+            path_line.lineTo(shape.points[0] * shape.scale)
+            for i in range(len(shape.points)):
+                _build_shape_rotation_point_path(
+                    path=path_rotation_vertices, shape=shape, vertex_index=i
+                )
+            _build_shape_oriented_rectangle_arrow_path(
+                path=path_orientation_arrow, shape=shape
+            )
+        elif len(shape.points) == 2:
+            path_line.moveTo(shape.points[0] * shape.scale)
+            path_line.lineTo(shape.points[1] * shape.scale)
+            for i in range(2):
                 _build_shape_point_path(path=path_vertices, shape=shape, vertex_index=i)
     elif shape.shape_type == "circle":
         assert len(shape.points) in [1, 2]
