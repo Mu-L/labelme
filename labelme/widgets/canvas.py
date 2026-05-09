@@ -437,6 +437,11 @@ class Canvas(QtWidgets.QWidget):
         current = self._current
         assert current is not None
         if self.create_mode == "oriented_rectangle" and len(current.points) == 4:
+            # The second click only locks the orientation of the first edge,
+            # not its length. The third-corner cursor drives parallelogram
+            # completion through the diagonal anchor at points[0], so the
+            # clicked points[1] slides along the locked axis as the cursor
+            # changes the rectangle's extent in that direction.
             MOVING_CORNER_INDEX: Final[int] = 2
             self._bounded_move_vertex(
                 shape=current,
