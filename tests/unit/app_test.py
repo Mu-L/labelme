@@ -5,8 +5,8 @@ import math
 import pytest
 from PyQt5 import QtCore
 
+from labelme._shape import Shape
 from labelme.app import _shape_to_xyxy_bbox
-from labelme.shape import Shape
 
 
 def test_shape_to_xyxy_bbox_circle() -> None:

@@ -24,8 +24,8 @@ from labelme._automation import AiOutputFormat
 from labelme._automation import Detection
 from labelme._automation import OsamSession
 from labelme._automation import shapes_from_detections
-from labelme.shape import POLYLINE_SHAPE_TYPES
-from labelme.shape import Shape
+from labelme._shape import POLYLINE_SHAPE_TYPES
+from labelme._shape import Shape
 
 from .download import download_ai_model
 

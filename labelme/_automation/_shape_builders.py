@@ -6,7 +6,7 @@ import numpy as np
 from numpy.typing import NDArray
 from PyQt5.QtCore import QPointF
 
-from labelme.shape import Shape
+from labelme._shape import Shape
 
 from ._geometry import Circle
 from ._geometry import compute_circle_from_mask

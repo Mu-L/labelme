@@ -2,12 +2,8 @@ from __future__ import annotations
 
 import html
 from collections.abc import Iterator
-from typing import TYPE_CHECKING
 from typing import NamedTuple
 from typing import cast
-
-if TYPE_CHECKING:
-    from labelme.shape import Shape
 
 from PyQt5 import QtCore
 from PyQt5 import QtGui
@@ -15,6 +11,8 @@ from PyQt5 import QtWidgets
 from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QPalette
 from PyQt5.QtWidgets import QStyle
+
+from labelme._shape import Shape
 
 
 def format_label_with_color_dot(text: str, color: tuple[int, int, int]) -> str:

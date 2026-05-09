@@ -7,7 +7,7 @@ from PyQt5 import QtGui
 from PyQt5.QtCore import QPointF
 from pytestqt.qtbot import QtBot
 
-from labelme.shape import Shape
+from labelme._shape import Shape
 from labelme.widgets.canvas import Canvas
 from labelme.widgets.canvas import _compute_intersection_edges_image
 from labelme.widgets.canvas import _normalize_bbox_points
