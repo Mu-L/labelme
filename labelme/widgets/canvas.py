@@ -1235,7 +1235,7 @@ class Canvas(QtWidgets.QWidget):
         modifiers = a0.modifiers()
         key = a0.key()
         if self.mode == _CanvasMode.CREATE:
-            if key == Qt.Key_Escape and self._current:
+            if key == Qt.Key_Escape and self._current is not None:
                 self._cancel_current_shape()
             elif key in (Qt.Key_Return, Qt.Key_Space) and self._can_close_shape():
                 self._finalise()
