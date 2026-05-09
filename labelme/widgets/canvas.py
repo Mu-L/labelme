@@ -59,6 +59,8 @@ class Canvas(QtWidgets.QWidget):
     _last_hovered_vertex: int | None
     _hovered_edge: int | None
     _last_hovered_edge: int | None
+    _hovered_rotation: int | None
+    _last_hovered_rotation: int | None
 
     zoom_request = QtCore.pyqtSignal(int, QPointF)
     scroll_request = QtCore.pyqtSignal(int, int)
@@ -82,6 +84,9 @@ class Canvas(QtWidgets.QWidget):
     _prev_point: QPointF
     _prev_move_point: QPointF
     _drag_anchor: tuple[QPointF, QRectF]
+    _rotation_center: QPointF
+    _rotation_initial_angle: float
+    _rotation_original_points: list[QPointF]
 
     _pan_anchor: QPointF | None
 
@@ -102,6 +107,7 @@ class Canvas(QtWidgets.QWidget):
             {
                 "polygon": False,
                 "rectangle": True,
+                "oriented_rectangle": False,
                 "circle": False,
                 "line": False,
                 "point": False,
@@ -124,6 +130,9 @@ class Canvas(QtWidgets.QWidget):
         self._prev_point = QPointF()
         self._prev_move_point = QPointF()
         self._drag_anchor = (QPointF(), QRectF())
+        self._rotation_center = QPointF()
+        self._rotation_initial_angle = 0.0
+        self._rotation_original_points = []
         self.scale: float = 1.0
         self._osam_session = None
         self._hide_background: bool = False
@@ -151,6 +160,7 @@ class Canvas(QtWidgets.QWidget):
         if value not in [
             "polygon",
             "rectangle",
+            "oriented_rectangle",
             "circle",
             "line",
             "point",
@@ -238,7 +248,10 @@ class Canvas(QtWidgets.QWidget):
 
     def leaveEvent(self, a0: QtCore.QEvent) -> None:
         if self._set_highlight(
-            hovered_shape=None, hovered_edge=None, hovered_vertex=None
+            hovered_shape=None,
+            hovered_edge=None,
+            hovered_vertex=None,
+            hovered_rotation=None,
         ):
             self.update()
         self._release_cursor()
@@ -256,7 +269,10 @@ class Canvas(QtWidgets.QWidget):
         else:
             # EDIT -> CREATE
             need_update: bool = self._set_highlight(
-                hovered_shape=None, hovered_edge=None, hovered_vertex=None
+                hovered_shape=None,
+                hovered_edge=None,
+                hovered_vertex=None,
+                hovered_rotation=None,
             )
             need_update |= self.deselect_shape()
             if need_update:
@@ -267,6 +283,7 @@ class Canvas(QtWidgets.QWidget):
         hovered_shape: Shape | None,
         hovered_edge: int | None,
         hovered_vertex: int | None,
+        hovered_rotation: int | None,
     ) -> bool:
         previous_shape: Shape | None = self.hovered_shape
         need_update: bool = hovered_shape is not None
@@ -283,9 +300,13 @@ class Canvas(QtWidgets.QWidget):
         self._last_hovered_edge = (
             self._hovered_edge if hovered_edge is None else hovered_edge
         )
+        self._last_hovered_rotation = (
+            self._hovered_rotation if hovered_rotation is None else hovered_rotation
+        )
         self.hovered_shape = hovered_shape
         self._hovered_vertex = hovered_vertex
         self._hovered_edge = hovered_edge
+        self._hovered_rotation = hovered_rotation
         return need_update
 
     def _is_vertex_selected(self) -> bool:
@@ -293,6 +314,9 @@ class Canvas(QtWidgets.QWidget):
 
     def _is_edge_selected(self) -> bool:
         return self._hovered_edge is not None
+
+    def _is_rotation_point_selected(self) -> bool:
+        return self._hovered_rotation is not None
 
     def _update_status(self, extra_messages: list[str] | None = None) -> None:
         messages: list[str] = []
@@ -345,6 +369,13 @@ class Canvas(QtWidgets.QWidget):
                 return self.tr("Click first corner for rectangle")
             else:
                 return self.tr("Click opposite corner for rectangle (Shift for square)")
+        if self.create_mode == "oriented_rectangle":
+            if is_new:
+                return self.tr("Click first corner for oriented rectangle")
+            assert self._current is not None
+            if len(self._current.points) == 1:
+                return self.tr("Click second corner to set orientation")
+            return self.tr("Click third corner to close oriented rectangle")
         return self.tr("Click to add point")
 
     def mouseMoveEvent(self, a0: QtGui.QMouseEvent) -> None:
@@ -405,6 +436,20 @@ class Canvas(QtWidgets.QWidget):
     def _project_drawing_pos_into_image(self, pos: QPointF) -> QPointF:
         current = self._current
         assert current is not None
+        if self.create_mode == "oriented_rectangle" and len(current.points) == 4:
+            # The second click only locks the orientation of the first edge,
+            # not its length. The third-corner cursor drives parallelogram
+            # completion through the diagonal anchor at points[0], so the
+            # clicked points[1] slides along the locked axis as the cursor
+            # changes the rectangle's extent in that direction.
+            MOVING_CORNER_INDEX: Final[int] = 2
+            self._bounded_move_vertex(
+                shape=current,
+                vertex_index=MOVING_CORNER_INDEX,
+                pos=pos,
+                is_shift_pressed=False,
+            )
+            return current.points[MOVING_CORNER_INDEX]
         if self.is_out_of_pixmap(pos):
             return _compute_intersection_edges_image(
                 current.points[-1], pos, image_size=self.pixmap.size()
@@ -454,6 +499,12 @@ class Canvas(QtWidgets.QWidget):
             self._line.points = [current.points[0], pos]
             self._line.point_labels = [1, 1]
             self._line.close()
+        elif mode == "oriented_rectangle":
+            origin = (
+                current.points[0] if len(current.points) == 1 else current.points[1]
+            )
+            self._line.points = [origin, pos]
+            self._line.point_labels = [1, 1]
         elif mode == "circle":
             self._line.points = [current.points[0], pos]
             self._line.point_labels = [1, 1]
@@ -485,6 +536,9 @@ class Canvas(QtWidgets.QWidget):
         if self._is_vertex_selected():
             self._drag_hovered_vertex(pos=pos, is_shift_pressed=is_shift_pressed)
             return
+        if self._is_rotation_point_selected():
+            self._drag_hovered_rotation_point(pos=pos)
+            return
         if not self.selected_shapes:
             return
         self._drag_selected_shapes(pos=pos)
@@ -493,13 +547,44 @@ class Canvas(QtWidgets.QWidget):
         assert self._hovered_vertex is not None
         assert self.hovered_shape is not None
         self._bounded_move_vertex(
-            self.hovered_shape,
-            self._hovered_vertex,
-            pos,
+            shape=self.hovered_shape,
+            vertex_index=self._hovered_vertex,
+            pos=pos,
             is_shift_pressed=is_shift_pressed,
         )
         self.update()
         self._is_moving_shape = True
+
+    def _drag_hovered_rotation_point(self, pos: QPointF) -> None:
+        assert self.hovered_shape is not None
+        assert self._rotation_original_points, (
+            "_capture_rotation_anchors must be called before dragging"
+        )
+        current_angle = labelme.utils.direction_angle(
+            start=self._rotation_center, end=pos
+        )
+        _shape.rotate(
+            shape=self.hovered_shape,
+            center=self._rotation_center,
+            angle=current_angle - self._rotation_initial_angle,
+            source_points=self._rotation_original_points,
+        )
+        self.update()
+        self._is_moving_shape = True
+
+    def _capture_rotation_anchors(self) -> None:
+        assert self.hovered_shape is not None
+        assert self._hovered_rotation is not None
+        handle = _shape.get_rotation_handle(
+            shape=self.hovered_shape, index=self._hovered_rotation
+        )
+        self._rotation_center = _shape.oriented_rectangle_center(
+            shape=self.hovered_shape
+        )
+        self._rotation_initial_angle = labelme.utils.direction_angle(
+            start=self._rotation_center, end=handle
+        )
+        self._rotation_original_points = self.hovered_shape.points[:]
 
     def _drag_selected_shapes(self, pos: QPointF) -> None:
         self._apply_cursor(CURSOR_MOVE)
@@ -516,51 +601,82 @@ class Canvas(QtWidgets.QWidget):
             index_vertex: int | None = _shape.nearest_vertex_index(
                 shape=shape, point=pos, epsilon=self._epsilon
             )
-            if index_vertex is not None:
-                self._set_highlight(
-                    hovered_shape=shape, hovered_edge=None, hovered_vertex=index_vertex
-                )
-                shape.highlight_vertex(index=index_vertex, mode="move")
-                self._apply_cursor(CURSOR_POINT)
-                status_messages.append(self.tr("Click & drag to move point"))
-                if shape.can_remove_point():
-                    status_messages.append(
-                        self.tr("ALT + SHIFT + Click to delete point")
-                    )
-                self.update()
-                return
+            if index_vertex is None:
+                continue
+            self._set_highlight(
+                hovered_shape=shape,
+                hovered_edge=None,
+                hovered_vertex=index_vertex,
+                hovered_rotation=None,
+            )
+            shape.highlight_vertex(index=index_vertex, mode="move")
+            self._apply_cursor(CURSOR_POINT)
+            status_messages.append(self.tr("Click & drag to move point"))
+            if shape.can_remove_point():
+                status_messages.append(self.tr("ALT + SHIFT + Click to delete point"))
+            self.update()
+            return
+
+        for shape in ordered_shapes:
+            index_rotation: int | None = _shape.nearest_rotation_point_index(
+                shape=shape, point=pos, epsilon=self._epsilon
+            )
+            if index_rotation is None:
+                continue
+            self._set_highlight(
+                hovered_shape=shape,
+                hovered_edge=None,
+                hovered_vertex=None,
+                hovered_rotation=index_rotation,
+            )
+            shape.highlight_rotation_point(index=index_rotation, mode="move")
+            self._apply_cursor(CURSOR_POINT)
+            status_messages.append(self.tr("Click & drag to rotate the shape"))
+            self.update()
+            return
 
         for shape in ordered_shapes:
             index_edge: int | None = _shape.nearest_edge_index(
                 shape=shape, point=pos, epsilon=self._epsilon
             )
-            if index_edge is not None and shape.can_add_point():
-                self._set_highlight(
-                    hovered_shape=shape, hovered_edge=index_edge, hovered_vertex=None
-                )
-                self._apply_cursor(CURSOR_POINT)
-                status_messages.append(self.tr("ALT + Click to create point on shape"))
-                self.update()
-                return
+            if index_edge is None or not shape.can_add_point():
+                continue
+            self._set_highlight(
+                hovered_shape=shape,
+                hovered_edge=index_edge,
+                hovered_vertex=None,
+                hovered_rotation=None,
+            )
+            self._apply_cursor(CURSOR_POINT)
+            status_messages.append(self.tr("ALT + Click to create point on shape"))
+            self.update()
+            return
 
         for shape in ordered_shapes:
-            if _shape.contains_point(shape=shape, point=pos):
-                self._set_highlight(
-                    hovered_shape=shape, hovered_edge=None, hovered_vertex=None
-                )
-                status_messages.extend(
-                    [
-                        self.tr("Click & drag to move shape"),
-                        self.tr("Right-click & drag to copy shape"),
-                    ]
-                )
-                self._apply_cursor(CURSOR_GRAB)
-                self.update()
-                return
+            if not _shape.contains_point(shape=shape, point=pos):
+                continue
+            self._set_highlight(
+                hovered_shape=shape,
+                hovered_edge=None,
+                hovered_vertex=None,
+                hovered_rotation=None,
+            )
+            status_messages.extend(
+                [
+                    self.tr("Click & drag to move shape"),
+                    self.tr("Right-click & drag to copy shape"),
+                ]
+            )
+            self._apply_cursor(CURSOR_GRAB)
+            self.update()
+            return
 
         self._release_cursor()
         if self._set_highlight(
-            hovered_shape=None, hovered_edge=None, hovered_vertex=None
+            hovered_shape=None,
+            hovered_edge=None,
+            hovered_vertex=None,
+            hovered_rotation=None,
         ):
             self.update()
 
@@ -635,6 +751,12 @@ class Canvas(QtWidgets.QWidget):
             self._line.points[0] = current.points[-1]
             if current.is_closed():
                 self._finalise()
+        elif mode == "oriented_rectangle":
+            if len(current.points) == 4:
+                self._finalise()
+            else:
+                assert len(current.points) == 1
+                self._lock_oriented_rectangle_first_edge(current=current)
         elif mode in ("rectangle", "circle", "line", "ai_box_to_shape"):
             assert len(current.points) == 1
             current.points = self._line.points
@@ -653,6 +775,24 @@ class Canvas(QtWidgets.QWidget):
             self._line.point_labels[0] = current.point_labels[-1]
             if modifiers & Qt.ControlModifier:
                 self._finalise()
+
+    def _lock_oriented_rectangle_first_edge(self, current: Shape) -> None:
+        first_corner = self._line.points[0]
+        second_corner = self._line.points[1]
+        current.points = [
+            first_corner,
+            second_corner,
+            QPointF(second_corner),
+            QPointF(first_corner),
+        ]
+        current.point_labels = [1, 1, 1, 1]
+        self._line.points[0] = second_corner
+
+    def _unlock_oriented_rectangle_first_edge(self, current: Shape) -> None:
+        anchor = current.points[0]
+        current.points = [anchor]
+        current.point_labels = [current.point_labels[0]]
+        self._line.points = [anchor, anchor]
 
     def _start_new_shape(
         self,
@@ -694,6 +834,8 @@ class Canvas(QtWidgets.QWidget):
     def _press_left_while_editing(self, pos: QPointF, event: QtGui.QMouseEvent) -> None:
         modifiers = event.modifiers()
         self._maybe_modify_polygon_topology(modifiers=modifiers)
+        if self._is_rotation_point_selected():
+            self._capture_rotation_anchors()
         self._select_shape_point(
             pos,
             multiple_selection_mode=int(modifiers) == Qt.ControlModifier,
@@ -849,6 +991,14 @@ class Canvas(QtWidgets.QWidget):
             return True
         if self.create_mode == "linestrip":
             return len(self._current.points) >= 2
+        if self.create_mode == "oriented_rectangle":
+            # Points 2 and 3 are seeded as duplicates of points 1 and 0 after
+            # the first edge is locked; mouse movement reprojects them. Treat
+            # the shape as closeable only once the third corner has moved.
+            return (
+                len(self._current.points) == 4
+                and self._current.points[2] != self._current.points[1]
+            )
         return len(self._current.points) >= 3
 
     def mouseDoubleClickEvent(self, a0: QtGui.QMouseEvent) -> None:
@@ -919,6 +1069,12 @@ class Canvas(QtWidgets.QWidget):
             )
             return
 
+        if shape.shape_type == "oriented_rectangle":
+            self._bounded_move_oriented_rectangle_vertex(
+                shape=shape, vertex_index=vertex_index, pos=pos
+            )
+            return
+
         if self.is_out_of_pixmap(pos):
             pos = _compute_intersection_edges_image(
                 shape.points[vertex_index], pos, image_size=self.pixmap.size()
@@ -930,6 +1086,52 @@ class Canvas(QtWidgets.QWidget):
             )
 
         shape.move_vertex(i=vertex_index, pos=pos)
+
+    def _bounded_move_oriented_rectangle_vertex(
+        self, shape: Shape, vertex_index: int, pos: QPointF
+    ) -> None:
+        assert len(shape.points) == 4
+        image_size = self.pixmap.size()
+        anchor = shape.points[(vertex_index - 2) % 4]
+        edge_axis = shape.points[(vertex_index - 1) % 4]
+        moving = pos
+        adjacent_perp, adjacent_para = _project_oriented_rectangle_corners(
+            anchor=anchor, edge_axis=edge_axis, moving=moving
+        )
+
+        if self.is_out_of_pixmap(moving):
+            edge_a = _compute_intersection_edges_image(
+                p1=adjacent_perp, p2=moving, image_size=image_size
+            )
+            edge_b = _compute_intersection_edges_image(
+                p1=adjacent_para, p2=moving, image_size=image_size
+            )
+            moving = labelme.utils.project_point_on_line(
+                point=moving, line_start=edge_a, line_end=edge_b
+            )
+            adjacent_perp, adjacent_para = _project_oriented_rectangle_corners(
+                anchor=anchor, edge_axis=adjacent_para, moving=moving
+            )
+
+        if self.is_out_of_pixmap(adjacent_perp):
+            adjacent_perp = _compute_intersection_edges_image(
+                p1=anchor, p2=adjacent_perp, image_size=image_size
+            )
+            moving = _opposite_corner_in_parallelogram(
+                opposite_to=anchor, neighbor1=adjacent_perp, neighbor2=adjacent_para
+            )
+
+        if self.is_out_of_pixmap(adjacent_para):
+            adjacent_para = _compute_intersection_edges_image(
+                p1=anchor, p2=adjacent_para, image_size=image_size
+            )
+            moving = _opposite_corner_in_parallelogram(
+                opposite_to=anchor, neighbor1=adjacent_perp, neighbor2=adjacent_para
+            )
+
+        shape.move_vertex(i=vertex_index, pos=moving)
+        shape.move_vertex(i=(vertex_index + 1) % 4, pos=adjacent_perp)
+        shape.move_vertex(i=(vertex_index - 1) % 4, pos=adjacent_para)
 
     def _drag_shapes(self, shapes: list[Shape], cursor: QPointF) -> bool:
         if self.is_out_of_pixmap(cursor):
@@ -1300,7 +1502,13 @@ class Canvas(QtWidgets.QWidget):
         self._current.open()
         if self.create_mode in POLYLINE_SHAPE_TYPES:
             self._line.points = [self._current.points[-1], self._current.points[0]]
-        elif self.create_mode in ("rectangle", "line", "circle", "ai_box_to_shape"):
+        elif self.create_mode in (
+            "rectangle",
+            "oriented_rectangle",
+            "line",
+            "circle",
+            "ai_box_to_shape",
+        ):
             self._current.points = self._current.points[0:1]
         elif self.create_mode == "point":
             self._current = None
@@ -1309,6 +1517,10 @@ class Canvas(QtWidgets.QWidget):
     def undo_last_point(self) -> None:
         current = self._current
         if current is None or current.is_closed():
+            return
+        if self.create_mode == "oriented_rectangle" and len(current.points) == 4:
+            self._unlock_oriented_rectangle_first_edge(current=current)
+            self.update()
             return
         current.pop_point()
         if len(current.points) > 0:
@@ -1322,6 +1534,7 @@ class Canvas(QtWidgets.QWidget):
         self.hovered_shape = None
         self._hovered_vertex = None
         self._hovered_edge = None
+        self._hovered_rotation = None
 
     def load_pixmap(self, pixmap: QtGui.QPixmap, clear_shapes: bool = True) -> None:
         pixmap_arr = labelme.utils.img_qt_to_arr(img_qt=pixmap.toImage())
@@ -1375,6 +1588,8 @@ class Canvas(QtWidgets.QWidget):
         self._last_hovered_vertex = None
         self._hovered_edge = None
         self._last_hovered_edge = None
+        self._hovered_rotation = None
+        self._last_hovered_rotation = None
         self.update()
 
 
@@ -1484,3 +1699,21 @@ def _is_shape_paintable(shape: Shape, visible: bool, hide_background: bool) -> b
 
 def _is_shape_filled(shape: Shape, hovered_shape: Shape | None) -> bool:
     return shape.selected or shape is hovered_shape
+
+
+def _opposite_corner_in_parallelogram(
+    *, opposite_to: QPointF, neighbor1: QPointF, neighbor2: QPointF
+) -> QPointF:
+    return neighbor1 + neighbor2 - opposite_to
+
+
+def _project_oriented_rectangle_corners(
+    *, anchor: QPointF, edge_axis: QPointF, moving: QPointF
+) -> tuple[QPointF, QPointF]:
+    perp = labelme.utils.project_point_on_perpendicular_line(
+        point=moving, line_start=edge_axis, line_end=anchor
+    )
+    para = _opposite_corner_in_parallelogram(
+        opposite_to=perp, neighbor1=anchor, neighbor2=moving
+    )
+    return perp, para

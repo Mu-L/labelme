@@ -172,6 +172,26 @@
         <source>Click opposite corner to segment object</source>
         <translation>Нажмите на противоположный угол для сегментации объекта</translation>
     </message>
+    <message>
+        <location filename="../widgets/canvas.py" line="0"/>
+        <source>Click first corner for oriented rectangle</source>
+        <translation>Нажмите первый угол для ориентированного прямоугольника</translation>
+    </message>
+    <message>
+        <location filename="../widgets/canvas.py" line="0"/>
+        <source>Click second corner to set orientation</source>
+        <translation>Нажмите второй угол для задания ориентации</translation>
+    </message>
+    <message>
+        <location filename="../widgets/canvas.py" line="0"/>
+        <source>Click third corner to close oriented rectangle</source>
+        <translation>Нажмите третий угол для замыкания ориентированного прямоугольника</translation>
+    </message>
+    <message>
+        <location filename="../widgets/canvas.py" line="0"/>
+        <source>Click &amp; drag to rotate the shape</source>
+        <translation>Нажмите и перетащите, чтобы повернуть фигуру</translation>
+    </message>
 </context>
 <context>
     <name>MainWindow</name>
@@ -861,6 +881,16 @@ Please select a different model or use AI-Box mode.</source>
         <location filename="../app.py" line="0"/>
         <source>Failed to load: {path}</source>
         <translation>Не удалось загрузить: {path}</translation>
+    </message>
+    <message>
+        <location filename="../app.py" line="0"/>
+        <source>Oriented Rectangle</source>
+        <translation>Ориентированный прямоугольник</translation>
+    </message>
+    <message>
+        <location filename="../app.py" line="0"/>
+        <source>Start drawing oriented rectangles</source>
+        <translation>Начать рисовать ориентированные прямоугольники</translation>
     </message>
 </context>
 </TS>

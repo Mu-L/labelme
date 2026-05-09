@@ -172,6 +172,26 @@
         <source>Click opposite corner to segment object</source>
         <translation>Nhấp vào góc đối diện để phân đoạn đối tượng</translation>
     </message>
+    <message>
+        <location filename="../widgets/canvas.py" line="0"/>
+        <source>Click first corner for oriented rectangle</source>
+        <translation>Nhấn góc đầu tiên cho hình chữ nhật có hướng</translation>
+    </message>
+    <message>
+        <location filename="../widgets/canvas.py" line="0"/>
+        <source>Click second corner to set orientation</source>
+        <translation>Nhấn góc thứ hai để đặt hướng</translation>
+    </message>
+    <message>
+        <location filename="../widgets/canvas.py" line="0"/>
+        <source>Click third corner to close oriented rectangle</source>
+        <translation>Nhấn góc thứ ba để đóng hình chữ nhật có hướng</translation>
+    </message>
+    <message>
+        <location filename="../widgets/canvas.py" line="0"/>
+        <source>Click &amp; drag to rotate the shape</source>
+        <translation>Nhấn và kéo để xoay hình dạng</translation>
+    </message>
 </context>
 <context>
     <name>MainWindow</name>
@@ -858,6 +878,16 @@ Vui lòng chọn mô hình khác hoặc sử dụng chế độ AI-Box.</transla
         <location filename="../app.py" line="0"/>
         <source>Failed to load: {path}</source>
         <translation>Không thể tải: {path}</translation>
+    </message>
+    <message>
+        <location filename="../app.py" line="0"/>
+        <source>Oriented Rectangle</source>
+        <translation>Hình chữ nhật có hướng</translation>
+    </message>
+    <message>
+        <location filename="../app.py" line="0"/>
+        <source>Start drawing oriented rectangles</source>
+        <translation>Bắt đầu vẽ hình chữ nhật có hướng</translation>
     </message>
 </context>
 </TS>

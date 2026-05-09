@@ -172,6 +172,26 @@
         <source>Click opposite corner to segment object</source>
         <translation>Klik op de tegenoverliggende hoek om het object te segmenteren</translation>
     </message>
+    <message>
+        <location filename="../widgets/canvas.py" line="0"/>
+        <source>Click first corner for oriented rectangle</source>
+        <translation>Klik op eerste hoek voor georiënteerde rechthoek</translation>
+    </message>
+    <message>
+        <location filename="../widgets/canvas.py" line="0"/>
+        <source>Click second corner to set orientation</source>
+        <translation>Klik op tweede hoek om oriëntatie in te stellen</translation>
+    </message>
+    <message>
+        <location filename="../widgets/canvas.py" line="0"/>
+        <source>Click third corner to close oriented rectangle</source>
+        <translation>Klik op derde hoek om georiënteerde rechthoek te sluiten</translation>
+    </message>
+    <message>
+        <location filename="../widgets/canvas.py" line="0"/>
+        <source>Click &amp; drag to rotate the shape</source>
+        <translation>Klik en sleep om vorm te draaien</translation>
+    </message>
 </context>
 <context>
     <name>MainWindow</name>
@@ -858,6 +878,16 @@ Selecteer een ander model of gebruik de AI-Box-modus.</translation>
         <location filename="../app.py" line="0"/>
         <source>Failed to load: {path}</source>
         <translation>Laden mislukt: {path}</translation>
+    </message>
+    <message>
+        <location filename="../app.py" line="0"/>
+        <source>Oriented Rectangle</source>
+        <translation>Georiënteerde Rechthoek</translation>
+    </message>
+    <message>
+        <location filename="../app.py" line="0"/>
+        <source>Start drawing oriented rectangles</source>
+        <translation>Begin met tekenen van georiënteerde rechthoeken</translation>
     </message>
 </context>
 </TS>

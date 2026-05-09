@@ -172,6 +172,26 @@
         <source>Click opposite corner to segment object</source>
         <translation>Kliknij przeciwległy róg, aby segmentować obiekt</translation>
     </message>
+    <message>
+        <location filename="../widgets/canvas.py" line="0"/>
+        <source>Click first corner for oriented rectangle</source>
+        <translation>Kliknij pierwszy róg prostokąta zorientowanego</translation>
+    </message>
+    <message>
+        <location filename="../widgets/canvas.py" line="0"/>
+        <source>Click second corner to set orientation</source>
+        <translation>Kliknij drugi róg, aby ustawić orientację</translation>
+    </message>
+    <message>
+        <location filename="../widgets/canvas.py" line="0"/>
+        <source>Click third corner to close oriented rectangle</source>
+        <translation>Kliknij trzeci róg, aby zamknąć prostokąt zorientowany</translation>
+    </message>
+    <message>
+        <location filename="../widgets/canvas.py" line="0"/>
+        <source>Click &amp; drag to rotate the shape</source>
+        <translation>Kliknij i przeciągnij — obróć kształt</translation>
+    </message>
 </context>
 <context>
     <name>MainWindow</name>
@@ -858,6 +878,16 @@ Wybierz inny model lub użyj trybu AI-Box.</translation>
         <location filename="../app.py" line="0"/>
         <source>Failed to load: {path}</source>
         <translation>Nie udało się wczytać: {path}</translation>
+    </message>
+    <message>
+        <location filename="../app.py" line="0"/>
+        <source>Oriented Rectangle</source>
+        <translation>Prostokąt Zorientowany</translation>
+    </message>
+    <message>
+        <location filename="../app.py" line="0"/>
+        <source>Start drawing oriented rectangles</source>
+        <translation>Rozpocznij rysowanie prostokątów zorientowanych</translation>
     </message>
 </context>
 </TS>

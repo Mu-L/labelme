@@ -116,3 +116,46 @@ def format_shortcut(text: str) -> str:
         raise ValueError(f"shortcut missing '+': {text!r}")
     modifier, _, key = text.partition("+")
     return f"<b>{modifier}</b>+<b>{key}</b>"
+
+
+def direction_angle(*, start: QtCore.QPointF, end: QtCore.QPointF) -> float:
+    delta = end - start
+    return float(np.arctan2(delta.y(), delta.x()))
+
+
+def _project_point_along_direction(
+    *,
+    base: QtCore.QPointF,
+    direction: QtCore.QPointF,
+    point: QtCore.QPointF,
+) -> QtCore.QPointF:
+    length_sq = QtCore.QPointF.dotProduct(direction, direction)
+    if length_sq == 0.0:
+        return QtCore.QPointF(point)
+    t = QtCore.QPointF.dotProduct(direction, point - base) / length_sq
+    return base + direction * t
+
+
+def project_point_on_line(
+    *,
+    point: QtCore.QPointF,
+    line_start: QtCore.QPointF,
+    line_end: QtCore.QPointF,
+) -> QtCore.QPointF:
+    return _project_point_along_direction(
+        base=line_end, direction=line_start - line_end, point=point
+    )
+
+
+def project_point_on_perpendicular_line(
+    *,
+    point: QtCore.QPointF,
+    line_start: QtCore.QPointF,
+    line_end: QtCore.QPointF,
+) -> QtCore.QPointF:
+    delta = line_start - line_end
+    return _project_point_along_direction(
+        base=line_end,
+        direction=QtCore.QPointF(delta.y(), -delta.x()),
+        point=point,
+    )
