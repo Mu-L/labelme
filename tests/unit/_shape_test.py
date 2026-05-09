@@ -6,7 +6,7 @@ from numpy.typing import NDArray
 from PyQt5 import QtCore
 
 from labelme import _shape
-from labelme.shape import Shape
+from labelme._shape import Shape
 
 
 def _make_point_shape(x: float, y: float) -> Shape:

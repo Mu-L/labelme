@@ -4,7 +4,7 @@ from collections.abc import Iterable
 
 from PyQt5 import QtCore
 
-from labelme.shape import Shape
+from labelme._shape import Shape
 
 
 class ShapeClipboard(QtCore.QObject):

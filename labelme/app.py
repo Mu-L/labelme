@@ -48,9 +48,9 @@ from labelme._label_file import is_label_file_path
 from labelme._label_file import read_image_file
 from labelme._label_file import read_label_file
 from labelme._label_file import write_label_file
+from labelme._shape import Shape
 from labelme._shape_clipboard import ShapeClipboard
 from labelme.config import load_config
-from labelme.shape import Shape
 from labelme.widgets import AiAssistedAnnotationWidget
 from labelme.widgets import AiTextToAnnotationWidget
 from labelme.widgets import BrightnessContrastDialog

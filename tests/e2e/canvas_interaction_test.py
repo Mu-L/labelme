@@ -9,8 +9,8 @@ from PyQt5.QtCore import Qt
 from pytestqt.qtbot import QtBot
 
 from labelme import _shape
+from labelme._shape import Shape
 from labelme.app import MainWindow
-from labelme.shape import Shape
 from labelme.widgets.canvas import Canvas
 from labelme.widgets.canvas import _CanvasMode
 from labelme.widgets.label_dialog import LabelDialog

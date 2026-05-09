@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from PyQt5 import QtCore
 
+from labelme._shape import Shape
 from labelme._shape_clipboard import ShapeClipboard
-from labelme.shape import Shape
 
 
 def _make_shape(label: str, x: float, y: float) -> Shape:
