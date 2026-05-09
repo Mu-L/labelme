@@ -174,12 +174,3 @@ class Shape:
 
     def copy(self) -> Shape:
         return copy.deepcopy(self)
-
-    def __len__(self) -> int:
-        return len(self.points)
-
-    def __getitem__(self, key: int) -> QtCore.QPointF:
-        return self.points[key]
-
-    def __setitem__(self, key: int, value: QtCore.QPointF) -> None:
-        self.points[key] = value

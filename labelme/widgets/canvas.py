@@ -299,7 +299,7 @@ class Canvas(QtWidgets.QWidget):
         if self.mode == _CanvasMode.CREATE:
             messages.append(self.tr("Creating %r") % self.create_mode)
             messages.append(self._get_create_mode_message())
-            if self._current:
+            if self._current is not None:
                 messages.append(self.tr("ESC to cancel"))
             if self._can_close_shape():
                 messages.append(self.tr("Enter or Space to finalize"))
@@ -407,13 +407,13 @@ class Canvas(QtWidgets.QWidget):
         assert current is not None
         if self.is_out_of_pixmap(pos):
             return _compute_intersection_edges_image(
-                current[-1], pos, image_size=self.pixmap.size()
+                current.points[-1], pos, image_size=self.pixmap.size()
             )
         if not self._cursor_should_snap_to_polygon_origin(pos=pos):
             return pos
         self._apply_cursor(CURSOR_POINT)
         current.highlight_vertex(index=0, mode="near")
-        return current[0]
+        return current.points[0]
 
     def _cursor_should_snap_to_polygon_origin(self, pos: QPointF) -> bool:
         if not self._snapping:
@@ -421,9 +421,9 @@ class Canvas(QtWidgets.QWidget):
         if self.create_mode != "polygon":
             return False
         current = self._current
-        if current is None or len(current) <= 1:
+        if current is None or len(current.points) <= 1:
             return False
-        return self._is_close_enough(pos, current[0])
+        return self._is_close_enough(pos, current.points[0])
 
     def _refresh_hover_state(self, pos: QPointF) -> None:
         status_messages: list[str] = []
@@ -437,7 +437,7 @@ class Canvas(QtWidgets.QWidget):
         assert current is not None
         mode = self.create_mode
         if mode in POLYLINE_SHAPE_TYPES:
-            self._line.points = [current[-1], pos]
+            self._line.points = [current.points[-1], pos]
             self._line.point_labels = [1, 1]
         elif mode == "ai_points_to_shape":
             self._line.points = [current.points[-1], pos]
@@ -447,21 +447,23 @@ class Canvas(QtWidgets.QWidget):
             ]
         elif mode in ("rectangle", "ai_box_to_shape"):
             if is_shift_pressed:
-                pos = _snap_cursor_pos_for_square(pos=pos, opposite_vertex=current[0])
+                pos = _snap_cursor_pos_for_square(
+                    pos=pos, opposite_vertex=current.points[0]
+                )
                 self._prev_move_point = pos
-            self._line.points = [current[0], pos]
+            self._line.points = [current.points[0], pos]
             self._line.point_labels = [1, 1]
             self._line.close()
         elif mode == "circle":
-            self._line.points = [current[0], pos]
+            self._line.points = [current.points[0], pos]
             self._line.point_labels = [1, 1]
             self._line.shape_type = "circle"
         elif mode == "line":
-            self._line.points = [current[0], pos]
+            self._line.points = [current.points[0], pos]
             self._line.point_labels = [1, 1]
             self._line.close()
         elif mode == "point":
-            self._line.points = [current[0]]
+            self._line.points = [current.points[0]]
             self._line.point_labels = [1]
             self._line.close()
         return pos
@@ -629,8 +631,8 @@ class Canvas(QtWidgets.QWidget):
         mode = self.create_mode
         modifiers = event.modifiers()
         if mode == "polygon":
-            current.add_point(self._line[1], autoclose=True)
-            self._line[0] = current[-1]
+            current.add_point(self._line.points[1], autoclose=True)
+            self._line.points[0] = current.points[-1]
             if current.is_closed():
                 self._finalise()
         elif mode in ("rectangle", "circle", "line", "ai_box_to_shape"):
@@ -638,8 +640,8 @@ class Canvas(QtWidgets.QWidget):
             current.points = self._line.points
             self._finalise()
         elif mode == "linestrip":
-            current.add_point(self._line[1])
-            self._line[0] = current[-1]
+            current.add_point(self._line.points[1])
+            self._line.points[0] = current.points[-1]
             if int(modifiers) == Qt.ControlModifier:
                 self._finalise()
         elif mode == "ai_points_to_shape":
@@ -841,13 +843,13 @@ class Canvas(QtWidgets.QWidget):
     def _can_close_shape(self) -> bool:
         if self.mode != _CanvasMode.CREATE:
             return False
-        if not self._current:
+        if self._current is None:
             return False
         if self.create_mode == "ai_points_to_shape":
             return True
         if self.create_mode == "linestrip":
-            return len(self._current) >= 2
-        return len(self._current) >= 3
+            return len(self._current.points) >= 2
+        return len(self._current.points) >= 3
 
     def mouseDoubleClickEvent(self, a0: QtGui.QMouseEvent) -> None:
         if self._double_click != "close":
@@ -919,12 +921,12 @@ class Canvas(QtWidgets.QWidget):
 
         if self.is_out_of_pixmap(pos):
             pos = _compute_intersection_edges_image(
-                shape[vertex_index], pos, image_size=self.pixmap.size()
+                shape.points[vertex_index], pos, image_size=self.pixmap.size()
             )
 
         if is_shift_pressed and shape.shape_type == "rectangle":
             pos = _snap_cursor_pos_for_square(
-                pos=pos, opposite_vertex=shape[1 - vertex_index]
+                pos=pos, opposite_vertex=shape.points[1 - vertex_index]
             )
 
         shape.move_vertex(i=vertex_index, pos=pos)
@@ -1100,7 +1102,7 @@ class Canvas(QtWidgets.QWidget):
                 " so forcing to be opaque."
             )
             preview.fill_color.setAlpha(64)
-        preview.add_point(point=self._line[1], autoclose=True)
+        preview.add_point(point=self._line.points[1], autoclose=True)
         return preview
 
     def _build_ai_points_preview(self, current: Shape) -> Shape:
@@ -1297,7 +1299,7 @@ class Canvas(QtWidgets.QWidget):
         self._current = self.shapes.pop()
         self._current.open()
         if self.create_mode in POLYLINE_SHAPE_TYPES:
-            self._line.points = [self._current[-1], self._current[0]]
+            self._line.points = [self._current.points[-1], self._current.points[0]]
         elif self.create_mode in ("rectangle", "line", "circle", "ai_box_to_shape"):
             self._current.points = self._current.points[0:1]
         elif self.create_mode == "point":
@@ -1309,8 +1311,8 @@ class Canvas(QtWidgets.QWidget):
         if current is None or current.is_closed():
             return
         current.pop_point()
-        if len(current) > 0:
-            self._line[0] = current[-1]
+        if len(current.points) > 0:
+            self._line.points[0] = current.points[-1]
             self.update()
         else:
             self._cancel_current_shape()
