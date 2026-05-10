@@ -10,6 +10,7 @@ from labelme._shape import Shape
 
 from ._geometry import Circle
 from ._geometry import compute_circle_from_mask
+from ._geometry import compute_oriented_rectangle_from_mask
 from ._geometry import compute_polygon_from_mask
 from ._types import AiOutputFormat
 
@@ -99,15 +100,45 @@ def _shape_from_detection(
             label=detection.label,
             description=detection.description,
         )
+    if shape_type == "oriented_rectangle":
+        corners = _oriented_rectangle_for_detection(detection=detection)
+        if corners is None:
+            return None
+        return _build_shape(
+            shape_type="oriented_rectangle",
+            points=[QPointF(float(x), float(y)) for x, y in corners],
+            label=detection.label,
+            description=detection.description,
+        )
     raise ValueError(f"Unsupported shape_type: {shape_type!r}")
+
+
+def _oriented_rectangle_for_detection(
+    detection: Detection,
+) -> NDArray[np.float32] | None:
+    if detection.mask is not None:
+        corners = compute_oriented_rectangle_from_mask(mask=detection.mask)
+        if corners is not None:
+            offset_x, offset_y = (
+                detection.bbox[:2] if detection.bbox is not None else (0.0, 0.0)
+            )
+            return corners + np.array([offset_x, offset_y], dtype=np.float32)
+    if detection.bbox is not None:
+        xmin, ymin, xmax, ymax = detection.bbox
+        return np.array(
+            [[xmin, ymin], [xmax, ymin], [xmax, ymax], [xmin, ymax]],
+            dtype=np.float32,
+        )
+    return None
 
 
 def _circle_for_detection(detection: Detection) -> Circle | None:
     if detection.mask is not None:
         circle = compute_circle_from_mask(mask=detection.mask)
         if circle is not None:
-            offset_x = detection.bbox[0] if detection.bbox is not None else 0.0
-            offset_y = detection.bbox[1] if detection.bbox is not None else 0.0
+            offset_x, offset_y = (
+                detection.bbox[:2] if detection.bbox is not None else (0.0, 0.0)
+            )
             return Circle(
                 cx=circle.cx + offset_x,
                 cy=circle.cy + offset_y,

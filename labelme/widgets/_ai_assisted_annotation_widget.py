@@ -90,6 +90,7 @@ class AiAssistedAnnotationWidget(QtWidgets.QWidget):
         self._output_format_combo.addItem("Polygon", "polygon")
         self._output_format_combo.addItem("Mask", "mask")
         self._output_format_combo.addItem("Rectangle", "rectangle")
+        self._output_format_combo.addItem("Oriented Rectangle", "oriented_rectangle")
         self._output_format_combo.addItem("Circle", "circle")
         body_layout.addWidget(self._output_format_combo)
 
