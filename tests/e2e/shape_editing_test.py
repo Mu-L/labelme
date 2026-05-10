@@ -5,6 +5,7 @@ from pathlib import Path
 import pytest
 from PyQt5 import QtWidgets
 from PyQt5.QtCore import QPoint
+from PyQt5.QtCore import QPointF
 from PyQt5.QtCore import Qt
 from pytestqt.qtbot import QtBot
 
@@ -201,9 +202,12 @@ def test_right_drag_copy_here_duplicates_shape(
 ) -> None:
     canvas = annotated_win._canvas_widgets.canvas
     select_shape(qtbot=qtbot, canvas=canvas, shape_index=0)
+    original_shape = canvas.shapes[0]
+    original_label = original_shape.label
+    original_first_point = QPointF(original_shape.points[0])
     num_before = len(canvas.shapes)
 
-    bounds_center = _shape.bounds(shape=canvas.shapes[0]).center()
+    bounds_center = _shape.bounds(shape=original_shape).center()
     start_widget = image_to_widget_pos(canvas=canvas, image_pos=bounds_center)
     end_widget = QPoint(start_widget.x() + 30, start_widget.y() + 20)
 
@@ -229,5 +233,16 @@ def test_right_drag_copy_here_duplicates_shape(
     )
 
     assert len(canvas.shapes) == num_before + 1
+
+    # Pasted shape must be a deep copy: distinct object, distinct point list,
+    # and mutation must not bleed back into the original. Guards against a
+    # regression where ShapeClipboard.paste() returned shared references.
+    duplicated_shape = canvas.shapes[-1]
+    assert duplicated_shape is not original_shape
+    assert duplicated_shape.points is not original_shape.points
+    duplicated_shape.label = "mutated"
+    duplicated_shape.points[0].setX(duplicated_shape.points[0].x() + 999.0)
+    assert original_shape.label == original_label
+    assert original_shape.points[0] == original_first_point
 
     close_or_pause(qtbot=qtbot, widget=annotated_win, pause=pause)
