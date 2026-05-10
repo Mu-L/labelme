@@ -149,11 +149,15 @@ def test_canvas_wheel_event_dispatches_signal(
 
     assert captured, f"{signal_attr} was not emitted"
     if expected_orientation is not None:
-        # The non-zero-delta emission must be on the expected axis: the plain
-        # case also emits an empty horizontal step (delta.x() == 0) before the
-        # vertical one, so filter to non-zero deltas before asserting.
+        # The plain-scroll branch emits an empty horizontal step (delta.x() == 0)
+        # before the real vertical one, so filter to non-zero deltas. There must
+        # be exactly one non-zero emission, on the expected axis, carrying the
+        # full angle_delta.y(). Anything looser would silently pass if the
+        # canvas dropped the real emission and only kept the zero step.
         non_zero = [args for args in captured if args[0] != 0]
-        assert non_zero, f"{signal_attr} emitted no non-zero deltas"
-        assert all(args[1] == expected_orientation for args in non_zero)
+        assert len(non_zero) == 1, (
+            f"{signal_attr} expected exactly one non-zero emission, got {non_zero!r}"
+        )
+        assert non_zero[0] == (angle_delta.y(), expected_orientation)
 
     close_or_pause(qtbot=qtbot, widget=_win, pause=pause)
