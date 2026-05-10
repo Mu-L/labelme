@@ -1504,7 +1504,6 @@ class Canvas(QtWidgets.QWidget):
             self._line.points = [self._current.points[-1], self._current.points[0]]
         elif self.create_mode in (
             "rectangle",
-            "oriented_rectangle",
             "line",
             "circle",
             "ai_box_to_shape",
@@ -1512,6 +1511,8 @@ class Canvas(QtWidgets.QWidget):
             self._current.points = self._current.points[0:1]
         elif self.create_mode == "point":
             self._current = None
+        else:
+            assert self.create_mode == "oriented_rectangle"
         self.drawing_polygon.emit(True)
 
     def undo_last_point(self) -> None:
