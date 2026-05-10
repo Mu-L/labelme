@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Final
 
 import numpy as np
+import PIL.Image
 import pytest
 from PyQt5.QtCore import QPointF
 from PyQt5.QtCore import Qt
@@ -695,8 +696,8 @@ def test_select_mask_shape_by_click(
     mask_b64 = utils.img_arr_to_b64(mask_arr)
 
     raw_image_path = data_path / "raw/2011_000003.jpg"
-    with open(raw_image_path, "rb") as f:
-        img_b64 = base64.b64encode(f.read()).decode("utf-8")
+    img_b64 = base64.b64encode(raw_image_path.read_bytes()).decode("utf-8")
+    image_width, image_height = PIL.Image.open(raw_image_path).size
 
     fixture_json = tmp_path / "mask_fixture.json"
     fixture_json.write_text(
@@ -715,10 +716,10 @@ def test_select_mask_shape_by_click(
                         "mask": mask_b64,
                     }
                 ],
-                "imagePath": "2011_000003.jpg",
+                "imagePath": raw_image_path.name,
                 "imageData": img_b64,
-                "imageHeight": 338,
-                "imageWidth": 500,
+                "imageHeight": image_height,
+                "imageWidth": image_width,
             }
         )
     )
