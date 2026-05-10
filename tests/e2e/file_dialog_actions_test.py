@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 from collections.abc import Callable
+from dataclasses import dataclass
 from pathlib import Path
-from types import SimpleNamespace
 
 import pytest
 from PyQt5 import QtWidgets
@@ -15,9 +15,17 @@ from .conftest import MainWinFactory
 from .conftest import show_window_and_wait_for_imagedata
 
 
+@dataclass(frozen=True)
+class _Paths:
+    annotated_dir: Path
+    next_image: Path
+    save_path: Path
+    new_output_dir: Path
+
+
 @pytest.fixture()
-def paths(data_path: Path, tmp_path: Path) -> SimpleNamespace:
-    return SimpleNamespace(
+def paths(data_path: Path, tmp_path: Path) -> _Paths:
+    return _Paths(
         annotated_dir=data_path / "annotated",
         next_image=data_path / "raw" / "2011_000006.jpg",
         save_path=tmp_path / "saved.json",
@@ -38,38 +46,92 @@ def loaded_win(
     return win
 
 
+def _open_file_dialog_return(paths: _Paths) -> tuple[str, str]:
+    return (str(paths.next_image), "")
+
+
+def _open_dir_dialog_return(paths: _Paths) -> str:
+    return str(paths.annotated_dir)
+
+
+def _save_file_dialog_return(paths: _Paths) -> tuple[str, str]:
+    return (str(paths.save_path), "")
+
+
+def _new_output_dir_dialog_return(paths: _Paths) -> str:
+    paths.new_output_dir.mkdir(exist_ok=True)
+    return str(paths.new_output_dir)
+
+
+def _trigger_open_file(win: MainWindow) -> None:
+    win._open_file_with_dialog()
+
+
+def _trigger_open_dir(win: MainWindow) -> None:
+    win._open_dir_with_dialog()
+
+
+def _trigger_save_as(win: MainWindow) -> None:
+    win._save_label_file(save_as=True)
+
+
+def _trigger_change_output_dir(win: MainWindow) -> None:
+    win.prompt_output_dir()
+
+
+def _verify_open_file(win: MainWindow, paths: _Paths) -> bool:
+    return (
+        win._image_path is not None
+        and Path(win._image_path).resolve() == paths.next_image.resolve()
+    )
+
+
+def _verify_open_dir(win: MainWindow, paths: _Paths) -> bool:
+    return (
+        win._docks.file_list.count() > 0
+        and win._image_path is not None
+        and Path(win._image_path).parent.resolve() == paths.annotated_dir.resolve()
+    )
+
+
+def _verify_save_as(_win: MainWindow, paths: _Paths) -> bool:
+    return paths.save_path.exists()
+
+
+def _verify_change_output_dir(win: MainWindow, paths: _Paths) -> bool:
+    return win._output_dir == paths.new_output_dir
+
+
 @pytest.mark.gui
 @pytest.mark.parametrize(
     ("dialog_method", "dialog_return", "trigger", "verify"),
     [
         pytest.param(
             "getOpenFileName",
-            lambda paths: (str(paths.next_image), ""),
-            lambda win: win._open_file_with_dialog(),
-            lambda win, paths: Path(win._image_path).resolve()
-            == paths.next_image.resolve(),
+            _open_file_dialog_return,
+            _trigger_open_file,
+            _verify_open_file,
             id="open_file",
         ),
         pytest.param(
             "getExistingDirectory",
-            lambda paths: str(paths.annotated_dir),
-            lambda win: win._open_dir_with_dialog(),
-            lambda win, paths: win._docks.file_list.count() > 0
-            and Path(win._image_path).parent.resolve() == paths.annotated_dir.resolve(),
+            _open_dir_dialog_return,
+            _trigger_open_dir,
+            _verify_open_dir,
             id="open_dir",
         ),
         pytest.param(
             "getSaveFileName",
-            lambda paths: (str(paths.save_path), ""),
-            lambda win: win._save_label_file(save_as=True),
-            lambda win, paths: paths.save_path.exists(),
+            _save_file_dialog_return,
+            _trigger_save_as,
+            _verify_save_as,
             id="save_as",
         ),
         pytest.param(
             "getExistingDirectory",
-            lambda paths: str(paths.new_output_dir),
-            lambda win: win.prompt_output_dir(),
-            lambda win, paths: win._output_dir == paths.new_output_dir,
+            _new_output_dir_dialog_return,
+            _trigger_change_output_dir,
+            _verify_change_output_dir,
             id="change_output_dir",
         ),
     ],
@@ -77,16 +139,14 @@ def loaded_win(
 def test_action_via_qfile_dialog(
     qtbot: QtBot,
     loaded_win: MainWindow,
-    paths: SimpleNamespace,
+    paths: _Paths,
     monkeypatch: pytest.MonkeyPatch,
     pause: bool,
     dialog_method: str,
-    dialog_return: Callable[[SimpleNamespace], object],
+    dialog_return: Callable[[_Paths], tuple[str, str] | str],
     trigger: Callable[[MainWindow], None],
-    verify: Callable[[MainWindow, SimpleNamespace], bool],
+    verify: Callable[[MainWindow, _Paths], bool],
 ) -> None:
-    paths.new_output_dir.mkdir(exist_ok=True)
-
     monkeypatch.setattr(
         QtWidgets.QFileDialog,
         dialog_method,
