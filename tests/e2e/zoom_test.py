@@ -4,6 +4,10 @@ from pathlib import Path
 from typing import Final
 
 import pytest
+from PyQt5 import QtGui
+from PyQt5.QtCore import QPoint
+from PyQt5.QtCore import QPointF
+from PyQt5.QtCore import Qt
 from pytestqt.qtbot import QtBot
 
 from labelme.app import MainWindow
@@ -74,5 +78,79 @@ def test_zoom_to_original(
 
     assert _win._canvas_widgets.zoom_widget.value() == 100
     assert _win._zoom_mode == _ZoomMode.MANUAL_ZOOM
+
+    close_or_pause(qtbot=qtbot, widget=_win, pause=pause)
+
+
+def _make_wheel_event(
+    pos: QPointF,
+    angle_delta: QPoint,
+    modifiers: Qt.KeyboardModifiers,
+) -> QtGui.QWheelEvent:
+    return QtGui.QWheelEvent(
+        pos,
+        pos,
+        QPoint(0, 0),
+        angle_delta,
+        Qt.NoButton,
+        modifiers,
+        Qt.NoScrollPhase,
+        False,
+    )
+
+
+@pytest.mark.gui
+@pytest.mark.parametrize(
+    ("modifiers", "angle_delta", "signal_attr", "expected_orientation"),
+    [
+        pytest.param(
+            Qt.ControlModifier, QPoint(0, 120), "zoom_request", None, id="ctrl_zoom"
+        ),
+        pytest.param(
+            Qt.NoModifier,
+            QPoint(0, 120),
+            "scroll_request",
+            Qt.Vertical,
+            id="plain_scroll",
+        ),
+        pytest.param(
+            Qt.ShiftModifier,
+            QPoint(0, 120),
+            "scroll_request",
+            Qt.Horizontal,
+            id="shift_horizontal_scroll",
+        ),
+    ],
+)
+def test_canvas_wheel_event_dispatches_signal(
+    qtbot: QtBot,
+    _win: MainWindow,
+    pause: bool,
+    modifiers: Qt.KeyboardModifiers,
+    angle_delta: QPoint,
+    signal_attr: str,
+    expected_orientation: Qt.Orientation | None,
+) -> None:
+    canvas = _win._canvas_widgets.canvas
+    captured: list[tuple[object, ...]] = []
+    signal = getattr(canvas, signal_attr)
+    signal.connect(lambda *args: captured.append(args))
+
+    canvas.wheelEvent(
+        _make_wheel_event(
+            pos=QPointF(canvas.width() / 2, canvas.height() / 2),
+            angle_delta=angle_delta,
+            modifiers=modifiers,
+        )
+    )
+    qtbot.wait(50)
+
+    assert captured, f"{signal_attr} was not emitted"
+    if expected_orientation is not None:
+        # scroll_request emits the matching orientation at least once for the
+        # axis driven by the wheel; the no-modifier case also emits an empty
+        # horizontal step which is fine to ignore.
+        emitted_orientations = {args[1] for args in captured}
+        assert expected_orientation in emitted_orientations
 
     close_or_pause(qtbot=qtbot, widget=_win, pause=pause)

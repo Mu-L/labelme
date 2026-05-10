@@ -651,6 +651,41 @@ def test_select_point_shape_by_click(
 
 
 @pytest.mark.gui
+def test_right_click_on_shape_opens_context_menu(
+    qtbot: QtBot,
+    annotated_win: MainWindow,
+    monkeypatch: pytest.MonkeyPatch,
+    pause: bool,
+) -> None:
+    canvas = annotated_win._canvas_widgets.canvas
+    exec_calls: list[int] = []
+    # Both menu variants are stubbed: an empty clipboard opens menus[0]; if a
+    # prior interaction populated `_selected_shapes_copy` it would open
+    # menus[1]. Returning None lets the post-exec_ cleanup branch also run.
+    monkeypatch.setattr(
+        canvas.menus[0],
+        "exec_",
+        lambda *args, **kwargs: exec_calls.append(0) or None,
+    )
+    monkeypatch.setattr(
+        canvas.menus[1],
+        "exec_",
+        lambda *args, **kwargs: exec_calls.append(1) or None,
+    )
+
+    bounds_center = _shape.bounds(shape=canvas.shapes[_SHAPE_INDEX]).center()
+    pos = image_to_widget_pos(canvas=canvas, image_pos=bounds_center)
+    qtbot.mouseMove(canvas, pos=pos)
+    qtbot.wait(50)
+    qtbot.mouseClick(canvas, Qt.RightButton, pos=pos)
+    qtbot.wait(50)
+
+    assert exec_calls
+
+    close_or_pause(qtbot=qtbot, widget=annotated_win, pause=pause)
+
+
+@pytest.mark.gui
 def test_select_mask_shape_by_click(
     main_win: MainWinFactory,
     qtbot: QtBot,

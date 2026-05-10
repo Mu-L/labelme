@@ -4,14 +4,19 @@ from pathlib import Path
 
 import pytest
 from PyQt5 import QtWidgets
+from PyQt5.QtCore import QPoint
+from PyQt5.QtCore import Qt
 from pytestqt.qtbot import QtBot
 
+from labelme import _shape
 from labelme.app import MainWindow
 from labelme.widgets.canvas import Canvas
 
 from ..conftest import assert_labelfile_sanity
 from ..conftest import close_or_pause
 from .conftest import MainWinFactory
+from .conftest import drag_canvas
+from .conftest import image_to_widget_pos
 from .conftest import select_shape
 from .conftest import show_window_and_wait_for_imagedata
 
@@ -185,3 +190,43 @@ def test_delete_undo_shape(
     assert_labelfile_sanity(str(tmp_path / "2011_000003.json"))
 
     close_or_pause(qtbot=qtbot, widget=win, pause=pause)
+
+
+@pytest.mark.gui
+def test_right_drag_copy_here_duplicates_shape(
+    qtbot: QtBot,
+    annotated_win: MainWindow,
+    monkeypatch: pytest.MonkeyPatch,
+    pause: bool,
+) -> None:
+    canvas = annotated_win._canvas_widgets.canvas
+    select_shape(qtbot=qtbot, canvas=canvas, shape_index=0)
+    num_before = len(canvas.shapes)
+
+    bounds_center = _shape.bounds(shape=canvas.shapes[0]).center()
+    start_widget = image_to_widget_pos(canvas=canvas, image_pos=bounds_center)
+    end_widget = QPoint(start_widget.x() + 30, start_widget.y() + 20)
+
+    # The right-drag release would normally show a modal menu and block the
+    # test. Trigger the "Copy here" action programmatically and return it as
+    # truthy so the canvas treats the menu as having handled the release.
+    def trigger_copy_here(*args: object, **kwargs: object) -> object:
+        for action in canvas.menus[1].actions():
+            if "Copy" in action.text():
+                action.trigger()
+                return action
+        return None
+
+    monkeypatch.setattr(canvas.menus[1], "exec_", trigger_copy_here)
+
+    drag_canvas(
+        qtbot=qtbot,
+        canvas=canvas,
+        button=Qt.RightButton,
+        start=start_widget,
+        end=end_widget,
+    )
+
+    assert len(canvas.shapes) == num_before + 1
+
+    close_or_pause(qtbot=qtbot, widget=annotated_win, pause=pause)
