@@ -39,40 +39,29 @@ def test_LabelFile_load_windows_path(data_path: Path, tmp_path: Path) -> None:
     assert label_file.image_data is not None
 
 
-def test_LabelFile_imagePath_deprecation() -> None:
+@pytest.mark.parametrize(
+    ("snake_attr", "camel_attr", "initial", "updated"),
+    [
+        ("image_path", "imagePath", "foo.jpg", "bar.jpg"),
+        ("image_data", "imageData", b"foo", b"bar"),
+        ("other_data", "otherData", {"foo": 1}, {"bar": 2}),
+    ],
+)
+def test_LabelFile_camelCase_attribute_is_deprecated(
+    snake_attr: str,
+    camel_attr: str,
+    initial: object,
+    updated: object,
+) -> None:
     label_file = LabelFile()
-    label_file.image_path = "foo.jpg"
+    setattr(label_file, snake_attr, initial)
 
-    with pytest.warns(DeprecationWarning, match="image_path"):
-        assert label_file.imagePath == "foo.jpg"
+    with pytest.warns(DeprecationWarning, match=snake_attr):
+        assert getattr(label_file, camel_attr) == initial
 
-    with pytest.warns(DeprecationWarning, match="image_path"):
-        label_file.imagePath = "bar.jpg"
-    assert label_file.image_path == "bar.jpg"
-
-
-def test_LabelFile_imageData_deprecation() -> None:
-    label_file = LabelFile()
-    label_file.image_data = b"foo"
-
-    with pytest.warns(DeprecationWarning, match="image_data"):
-        assert label_file.imageData == b"foo"
-
-    with pytest.warns(DeprecationWarning, match="image_data"):
-        label_file.imageData = b"bar"
-    assert label_file.image_data == b"bar"
-
-
-def test_LabelFile_otherData_deprecation() -> None:
-    label_file = LabelFile()
-    label_file.other_data = {"foo": 1}
-
-    with pytest.warns(DeprecationWarning, match="other_data"):
-        assert label_file.otherData == {"foo": 1}
-
-    with pytest.warns(DeprecationWarning, match="other_data"):
-        label_file.otherData = {"bar": 2}
-    assert label_file.other_data == {"bar": 2}
+    with pytest.warns(DeprecationWarning, match=snake_attr):
+        setattr(label_file, camel_attr, updated)
+    assert getattr(label_file, snake_attr) == updated
 
 
 @pytest.fixture()

@@ -1,14 +1,19 @@
 from __future__ import annotations
 
+import base64
+import json
 from pathlib import Path
 from typing import Final
 
+import numpy as np
 import pytest
+from PyQt5.QtCore import QPoint
 from PyQt5.QtCore import QPointF
 from PyQt5.QtCore import Qt
 from pytestqt.qtbot import QtBot
 
 from labelme import _shape
+from labelme import utils
 from labelme._shape import Shape
 from labelme.app import MainWindow
 from labelme.widgets.canvas import Canvas
@@ -17,11 +22,13 @@ from labelme.widgets.label_dialog import LabelDialog
 
 from ..conftest import assert_labelfile_sanity
 from ..conftest import close_or_pause
+from .conftest import MainWinFactory
 from .conftest import click_canvas_fraction
 from .conftest import drag_canvas
 from .conftest import image_to_widget_pos
 from .conftest import schedule_on_dialog
 from .conftest import select_shape
+from .conftest import show_window_and_wait_for_imagedata
 from .conftest import submit_label_dialog
 
 _TEST_FILE_NAME: Final[str] = "annotated/2011_000003.json"
@@ -602,3 +609,105 @@ def test_remove_point_blocked_at_minimum(
 
     _save_and_check(win=raw_win, tmp_path=tmp_path)
     close_or_pause(qtbot=qtbot, widget=raw_win, pause=pause)
+
+
+def _click_to_select(qtbot: QtBot, canvas: Canvas, image_pos: QPointF) -> None:
+    # The previous click may have left the cursor at the same widget pixel,
+    # which the offscreen Qt platform dedupes — nudge first to force a fresh
+    # mouseMoveEvent and refresh hover state before pressing.
+    qtbot.mouseMove(canvas, pos=QPoint(0, 0))
+    qtbot.wait(50)
+    pos = image_to_widget_pos(canvas=canvas, image_pos=image_pos)
+    qtbot.mouseMove(canvas, pos=pos)
+    qtbot.wait(50)
+    qtbot.mouseClick(canvas, Qt.LeftButton, pos=pos)
+    qtbot.wait(50)
+
+
+@pytest.mark.gui
+def test_select_point_shape_by_click(
+    qtbot: QtBot,
+    raw_win: MainWindow,
+    pause: bool,
+) -> None:
+    canvas = raw_win._canvas_widgets.canvas
+    raw_win._switch_canvas_mode(edit=False, create_mode="point")
+    qtbot.wait(50)
+
+    submit_label_dialog(qtbot=qtbot, label_dialog=raw_win._label_dialog, label="pt")
+    click_canvas_fraction(qtbot=qtbot, canvas=canvas, xy=(0.5, 0.5))
+
+    shape = _wait_for_shape(qtbot=qtbot, canvas=canvas, label="pt")
+    assert shape.shape_type == "point"
+
+    raw_win._switch_canvas_mode(edit=True)
+    qtbot.wait(50)
+
+    _click_to_select(qtbot=qtbot, canvas=canvas, image_pos=QPointF(shape.points[0]))
+
+    assert shape in canvas.selected_shapes
+
+    close_or_pause(qtbot=qtbot, widget=raw_win, pause=pause)
+
+
+@pytest.mark.gui
+def test_select_mask_shape_by_click(
+    main_win: MainWinFactory,
+    qtbot: QtBot,
+    data_path: Path,
+    tmp_path: Path,
+    pause: bool,
+) -> None:
+    # Mask cells are indexed pixel-for-pixel from points[0]; clicking inside
+    # the True region must land on a True cell to exercise the mask branch
+    # of `_shape.contains_point`.
+    mask_arr = np.zeros((40, 40), dtype=np.uint8)
+    mask_arr[10:30, 10:30] = 1
+    mask_b64 = utils.img_arr_to_b64(mask_arr)
+
+    raw_image_path = data_path / "raw/2011_000003.jpg"
+    with open(raw_image_path, "rb") as f:
+        img_b64 = base64.b64encode(f.read()).decode("utf-8")
+
+    fixture_json = tmp_path / "mask_fixture.json"
+    fixture_json.write_text(
+        json.dumps(
+            {
+                "version": "6.0.0",
+                "flags": {},
+                "shapes": [
+                    {
+                        "label": "mask_shape",
+                        "points": [[100.0, 100.0], [139.0, 139.0]],
+                        "group_id": None,
+                        "description": "",
+                        "shape_type": "mask",
+                        "flags": {},
+                        "mask": mask_b64,
+                    }
+                ],
+                "imagePath": "2011_000003.jpg",
+                "imageData": img_b64,
+                "imageHeight": 338,
+                "imageWidth": 500,
+            }
+        )
+    )
+
+    win = main_win(
+        file_or_dir=str(fixture_json),
+        config_overrides={"with_image_data": True},
+    )
+    show_window_and_wait_for_imagedata(qtbot=qtbot, win=win)
+    canvas = win._canvas_widgets.canvas
+
+    qtbot.waitUntil(lambda: any(s.label == "mask_shape" for s in canvas.shapes))
+    shape = next(s for s in canvas.shapes if s.label == "mask_shape")
+
+    # True region in image coords: rows/cols 110..129 (mask[10:30,10:30] +
+    # origin (100,100)). Click well inside that block.
+    _click_to_select(qtbot=qtbot, canvas=canvas, image_pos=QPointF(120.0, 120.0))
+
+    assert shape in canvas.selected_shapes
+
+    close_or_pause(qtbot=qtbot, widget=win, pause=pause)

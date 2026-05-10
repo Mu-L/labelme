@@ -10,6 +10,26 @@ from labelme._automation import Detection
 from labelme._automation import shapes_from_detections
 
 
+def test_shapes_from_detections_rectangle_uses_bbox() -> None:
+    [shape] = shapes_from_detections(
+        detections=[Detection(bbox=(10, 20, 30, 50))],
+        shape_type="rectangle",
+    )
+
+    assert shape.shape_type == "rectangle"
+    assert (shape.points[0].x(), shape.points[0].y()) == pytest.approx((10, 20))
+    assert (shape.points[1].x(), shape.points[1].y()) == pytest.approx((30, 50))
+
+
+def test_shapes_from_detections_rectangle_without_bbox_is_dropped() -> None:
+    shapes = shapes_from_detections(
+        detections=[Detection(mask=np.ones((5, 5), dtype=bool))],
+        shape_type="rectangle",
+    )
+
+    assert shapes == []
+
+
 def test_shapes_from_detections_circle_with_mask_uses_centroid_and_area() -> None:
     [shape] = shapes_from_detections(
         detections=[
