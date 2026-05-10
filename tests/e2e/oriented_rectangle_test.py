@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 import math
+from typing import Final
 
 import pytest
-from PyQt5.QtCore import QPoint
 from PyQt5.QtCore import QPointF
 from PyQt5.QtCore import Qt
 from pytestqt.qtbot import QtBot
@@ -33,6 +33,15 @@ def _edge_lengths(points: list[QPointF]) -> list[float]:
             points[(i + 1) % 4].y() - points[i].y(),
         )
         for i in range(4)
+    ]
+
+
+def _vertex_displacements(
+    actual: list[QPointF], original: list[QPointF]
+) -> list[float]:
+    return [
+        math.hypot(a.x() - o.x(), a.y() - o.y())
+        for a, o in zip(actual, original, strict=True)
     ]
 
 
@@ -103,10 +112,7 @@ def test_drag_rotation_handle_rotates_oriented_rectangle(
     for actual, expected in zip(rotated_edges, original_edges):
         assert actual == pytest.approx(expected, abs=1.0)
 
-    moved = [
-        math.hypot(actual.x() - original.x(), actual.y() - original.y())
-        for actual, original in zip(shape.points, original_points)
-    ]
+    moved = _vertex_displacements(actual=shape.points, original=original_points)
     assert min(moved) > 1.0
 
     close_or_pause(qtbot=qtbot, widget=raw_win, pause=pause)
@@ -158,16 +164,13 @@ def test_drag_vertex_out_of_pixmap_clips_oriented_rectangle(
         end=end_widget,
     )
 
-    moved = [
-        math.hypot(actual.x() - original.x(), actual.y() - original.y())
-        for actual, original in zip(shape.points, original_points)
-    ]
+    moved = _vertex_displacements(actual=shape.points, original=original_points)
     assert max(moved) > 1.0, "Drag did not move any vertex"
 
-    tolerance = 1e-3
+    _CLIP_TOLERANCE: Final = 1e-3
     for point in shape.points:
-        assert -tolerance <= point.x() <= pixmap_width + tolerance
-        assert -tolerance <= point.y() <= pixmap_height + tolerance
+        assert -_CLIP_TOLERANCE <= point.x() <= pixmap_width + _CLIP_TOLERANCE
+        assert -_CLIP_TOLERANCE <= point.y() <= pixmap_height + _CLIP_TOLERANCE
 
     p0, p1, p2, p3 = shape.points
     side_01 = p1 - p0
