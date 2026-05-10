@@ -182,3 +182,49 @@ def test_drag_vertex_out_of_pixmap_clips_oriented_rectangle(
     assert min(edges) > 1.0
 
     close_or_pause(qtbot=qtbot, widget=raw_win, pause=pause)
+
+
+@pytest.mark.gui
+def test_oriented_rectangle_disallows_add_and_remove_point(
+    qtbot: QtBot,
+    raw_win: MainWindow,
+    pause: bool,
+) -> None:
+    canvas = raw_win._canvas_widgets.canvas
+    _draw_oriented_rectangle(
+        qtbot=qtbot,
+        win=raw_win,
+        label="rect",
+        clicks=((0.3, 0.4), (0.7, 0.4), (0.7, 0.6)),
+    )
+    shape = next(s for s in canvas.shapes if s.label == "rect")
+    num_points = len(shape.points)
+
+    raw_win._switch_canvas_mode(edit=True)
+    qtbot.wait(50)
+
+    # Hovering over an edge midpoint enables `add_point_to_edge` for polygons,
+    # but oriented_rectangle's `can_add_point()` is False so the canvas must
+    # leave the action disabled.
+    assert shape.can_add_point() is False
+    p0, p1 = shape.points[0], shape.points[1]
+    edge_midpoint = QPointF((p0.x() + p1.x()) / 2, (p0.y() + p1.y()) / 2)
+    edge_widget = image_to_widget_pos(canvas=canvas, image_pos=edge_midpoint)
+    hover_widget_pos(qtbot=qtbot, canvas=canvas, pos=edge_widget)
+    assert not raw_win._actions.add_point_to_edge.isEnabled()
+
+    # Alt+Shift+Click on a vertex removes points from polygons; for
+    # oriented_rectangle `Shape.remove_point` bails out because
+    # `can_remove_point()` is False, so the vertex count must not change.
+    vertex_widget = image_to_widget_pos(canvas=canvas, image_pos=shape.points[0])
+    hover_widget_pos(qtbot=qtbot, canvas=canvas, pos=vertex_widget)
+    qtbot.mouseClick(
+        canvas,
+        Qt.LeftButton,
+        modifier=Qt.AltModifier | Qt.ShiftModifier,
+        pos=vertex_widget,
+    )
+    qtbot.wait(50)
+    assert len(shape.points) == num_points
+
+    close_or_pause(qtbot=qtbot, widget=raw_win, pause=pause)
