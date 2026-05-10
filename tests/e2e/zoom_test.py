@@ -87,6 +87,9 @@ def _make_wheel_event(
     angle_delta: QPoint,
     modifiers: Qt.KeyboardModifiers,
 ) -> QtGui.QWheelEvent:
+    # PyQt5's QWheelEvent has overlapping qt4 and modern overloads; the
+    # all-positional 8-arg form is the only one that disambiguates without
+    # forcing a particular `KeyboardModifier`/`KeyboardModifiers` type.
     return QtGui.QWheelEvent(
         pos,
         pos,
@@ -146,10 +149,11 @@ def test_canvas_wheel_event_dispatches_signal(
 
     assert captured, f"{signal_attr} was not emitted"
     if expected_orientation is not None:
-        # scroll_request emits the matching orientation at least once for the
-        # axis driven by the wheel; the no-modifier case also emits an empty
-        # horizontal step which is fine to ignore.
-        emitted_orientations = {args[1] for args in captured}
-        assert expected_orientation in emitted_orientations
+        # The non-zero-delta emission must be on the expected axis: the plain
+        # case also emits an empty horizontal step (delta.x() == 0) before the
+        # vertical one, so filter to non-zero deltas before asserting.
+        non_zero = [args for args in captured if args[0] != 0]
+        assert non_zero, f"{signal_attr} emitted no non-zero deltas"
+        assert all(args[1] == expected_orientation for args in non_zero)
 
     close_or_pause(qtbot=qtbot, widget=_win, pause=pause)
