@@ -658,19 +658,19 @@ def test_right_click_on_shape_opens_context_menu(
     pause: bool,
 ) -> None:
     canvas = annotated_win._canvas_widgets.canvas
-    exec_calls: list[int] = []
-    # Both menu variants are stubbed: an empty clipboard opens menus[0]; if a
-    # prior interaction populated `_selected_shapes_copy` it would open
-    # menus[1]. Returning None lets the post-exec_ cleanup branch also run.
+    # No prior right-drag has populated `_selected_shapes_copy`, so the bare
+    # right-click should open menus[0] (the no-clipboard variant). Stubbing
+    # both exec_ methods catches a regression that would route to menus[1].
+    menu_opened: list[int] = []
     monkeypatch.setattr(
         canvas.menus[0],
         "exec_",
-        lambda *args, **kwargs: exec_calls.append(0) or None,
+        lambda *args, **kwargs: menu_opened.append(0) or None,
     )
     monkeypatch.setattr(
         canvas.menus[1],
         "exec_",
-        lambda *args, **kwargs: exec_calls.append(1) or None,
+        lambda *args, **kwargs: menu_opened.append(1) or None,
     )
 
     bounds_center = _shape.bounds(shape=canvas.shapes[_SHAPE_INDEX]).center()
@@ -680,7 +680,7 @@ def test_right_click_on_shape_opens_context_menu(
     qtbot.mouseClick(canvas, Qt.RightButton, pos=pos)
     qtbot.wait(50)
 
-    assert exec_calls
+    assert menu_opened == [0]
 
     close_or_pause(qtbot=qtbot, widget=annotated_win, pause=pause)
 

@@ -143,7 +143,6 @@ def test_canvas_wheel_event_dispatches_signal(
             modifiers=modifiers,
         )
     )
-    qtbot.wait(50)
 
     assert captured, f"{signal_attr} was not emitted"
     if expected_orientation is not None:

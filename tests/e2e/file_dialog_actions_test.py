@@ -85,8 +85,7 @@ def test_action_via_qfile_dialog(
     trigger: Callable[[MainWindow], None],
     verify: Callable[[MainWindow, SimpleNamespace], bool],
 ) -> None:
-    if (output_dir := getattr(paths, "new_output_dir", None)) is not None:
-        output_dir.mkdir(exist_ok=True)
+    paths.new_output_dir.mkdir(exist_ok=True)
 
     monkeypatch.setattr(
         QtWidgets.QFileDialog,

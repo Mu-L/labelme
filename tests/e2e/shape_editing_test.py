@@ -208,14 +208,15 @@ def test_right_drag_copy_here_duplicates_shape(
     end_widget = QPoint(start_widget.x() + 30, start_widget.y() + 20)
 
     # The right-drag release would normally show a modal menu and block the
-    # test. Trigger the "Copy here" action programmatically and return it as
+    # test. Trigger the "Copy here" action programmatically (action[0], the
+    # first entry registered when the menu was populated) and return it as
     # truthy so the canvas treats the menu as having handled the release.
+    copy_here_action = canvas.menus[1].actions()[0]
+    assert copy_here_action.text() == "&Copy here"
+
     def trigger_copy_here(*args: object, **kwargs: object) -> object:
-        for action in canvas.menus[1].actions():
-            if "Copy" in action.text():
-                action.trigger()
-                return action
-        return None
+        copy_here_action.trigger()
+        return copy_here_action
 
     monkeypatch.setattr(canvas.menus[1], "exec_", trigger_copy_here)
 

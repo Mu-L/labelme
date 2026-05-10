@@ -179,73 +179,119 @@ def test_delete_shape_removes_label_list_entry(
     close_or_pause(qtbot=qtbot, widget=win, pause=pause)
 
 
-@pytest.mark.gui
-@pytest.mark.parametrize(
-    "scenario", ["cancel", "invalid_label", "multi_shape_disables_fields"]
-)
-def test_edit_label_edge_cases(
-    qtbot: QtBot,
+@pytest.fixture()
+def annotated_with_labels(
     main_win: MainWinFactory,
+    qtbot: QtBot,
     data_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-    pause: bool,
-    scenario: str,
-) -> None:
-    config_overrides: dict[str, object] | None = (
-        {"validate_label": "exact", "labels": ["dog"]}
-        if scenario == "invalid_label"
-        else None
-    )
+    request: pytest.FixtureRequest,
+) -> MainWindow:
+    config_overrides = getattr(request, "param", None)
     win = main_win(
         file_or_dir=str(data_path / "annotated/2011_000003.json"),
         config_overrides=config_overrides,
     )
     show_window_and_wait_for_imagedata(qtbot=qtbot, win=win)
+    return win
 
+
+@pytest.mark.gui
+def test_edit_label_cancel_keeps_labels(
+    qtbot: QtBot,
+    annotated_with_labels: MainWindow,
+    pause: bool,
+) -> None:
+    win = annotated_with_labels
     canvas = win._canvas_widgets.canvas
     label_list = win._docks.label_list
     label_dialog = win._label_dialog
     original_labels = [s.label for s in canvas.shapes]
 
-    if scenario == "multi_shape_disables_fields":
-        # Shape 0 is "person" and shape 3 is "bottle"; mismatched labels make
-        # `_edit_label` disable the text field while the dialog is open.
-        label_list.clearSelection()
-        label_list.select_item(label_list[0])
-        label_list.select_item(label_list[3])
-    else:
-        select_shape(qtbot=qtbot, canvas=canvas, shape_index=0)
-
-    edit_disabled_during_popup: list[bool] = []
-    error_shown: list[bool] = []
-
-    if scenario == "invalid_label":
-        monkeypatch.setattr(
-            QMessageBox,
-            "critical",
-            lambda *args, **kwargs: error_shown.append(True) or QMessageBox.Ok,
-        )
-
-    def dialog_action() -> None:
-        if scenario == "multi_shape_disables_fields":
-            edit_disabled_during_popup.append(not label_dialog.edit.isEnabled())
-            qtbot.keyClick(label_dialog, Qt.Key_Escape)
-        elif scenario == "cancel":
-            qtbot.keyClick(label_dialog, Qt.Key_Escape)
-        else:  # invalid_label
-            label_dialog.edit.clear()
-            qtbot.keyClicks(label_dialog.edit, "tiger")
-            qtbot.keyClick(label_dialog.edit, Qt.Key_Enter)
-
-    schedule_on_dialog(label_dialog=label_dialog, action=dialog_action)
+    select_shape(qtbot=qtbot, canvas=canvas, shape_index=0)
+    schedule_on_dialog(
+        label_dialog=label_dialog,
+        action=lambda: qtbot.keyClick(label_dialog, Qt.Key_Escape),
+    )
     label_list.item_double_clicked.emit(label_list[0])
     qtbot.waitUntil(lambda: not label_dialog.isVisible(), timeout=3000)
 
     assert [s.label for s in canvas.shapes] == original_labels
-    if scenario == "invalid_label":
-        assert error_shown
-    if scenario == "multi_shape_disables_fields":
-        assert edit_disabled_during_popup == [True]
+
+    close_or_pause(qtbot=qtbot, widget=win, pause=pause)
+
+
+@pytest.mark.gui
+@pytest.mark.parametrize(
+    "annotated_with_labels",
+    [{"validate_label": "exact", "labels": ["dog"]}],
+    indirect=True,
+)
+def test_edit_label_invalid_label_keeps_labels_and_shows_error(
+    qtbot: QtBot,
+    annotated_with_labels: MainWindow,
+    monkeypatch: pytest.MonkeyPatch,
+    pause: bool,
+) -> None:
+    win = annotated_with_labels
+    canvas = win._canvas_widgets.canvas
+    label_list = win._docks.label_list
+    label_dialog = win._label_dialog
+    original_labels = [s.label for s in canvas.shapes]
+
+    error_shown: list[bool] = []
+    monkeypatch.setattr(
+        QMessageBox,
+        "critical",
+        lambda *args, **kwargs: error_shown.append(True) or QMessageBox.Ok,
+    )
+
+    select_shape(qtbot=qtbot, canvas=canvas, shape_index=0)
+
+    def submit_unknown_label() -> None:
+        label_dialog.edit.clear()
+        qtbot.keyClicks(label_dialog.edit, "tiger")
+        qtbot.keyClick(label_dialog.edit, Qt.Key_Enter)
+
+    schedule_on_dialog(label_dialog=label_dialog, action=submit_unknown_label)
+    label_list.item_double_clicked.emit(label_list[0])
+    qtbot.waitUntil(lambda: not label_dialog.isVisible(), timeout=3000)
+
+    assert [s.label for s in canvas.shapes] == original_labels
+    assert error_shown
+
+    close_or_pause(qtbot=qtbot, widget=win, pause=pause)
+
+
+@pytest.mark.gui
+def test_edit_label_multi_shape_mismatch_disables_text_field(
+    qtbot: QtBot,
+    annotated_with_labels: MainWindow,
+    pause: bool,
+) -> None:
+    # Shape 0 is "person" and shape 3 is "bottle"; mismatched labels make
+    # `_edit_label` disable the text field while the dialog is open.
+    win = annotated_with_labels
+    canvas = win._canvas_widgets.canvas
+    label_list = win._docks.label_list
+    label_dialog = win._label_dialog
+    original_labels = [s.label for s in canvas.shapes]
+
+    label_list.clearSelection()
+    label_list.select_item(label_list[0])
+    label_list.select_item(label_list[3])
+
+    edit_disabled_during_popup: list[bool] = []
+
+    def capture_disabled_then_cancel() -> None:
+        edit_disabled_during_popup.append(not label_dialog.edit.isEnabled())
+        qtbot.keyClick(label_dialog, Qt.Key_Escape)
+
+    schedule_on_dialog(label_dialog=label_dialog, action=capture_disabled_then_cancel)
+    label_list.item_double_clicked.emit(label_list[0])
+    qtbot.waitUntil(lambda: not label_dialog.isVisible(), timeout=3000)
+
+    assert [s.label for s in canvas.shapes] == original_labels
+    assert edit_disabled_during_popup == [True]
 
     close_or_pause(qtbot=qtbot, widget=win, pause=pause)
 
