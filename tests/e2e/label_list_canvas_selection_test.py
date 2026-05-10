@@ -268,13 +268,17 @@ def test_edit_label_multi_shape_mismatch_disables_text_field(
     annotated_with_labels: MainWindow,
     pause: bool,
 ) -> None:
-    # Shape 0 is "person" and shape 3 is "bottle"; mismatched labels make
-    # `_edit_label` disable the text field while the dialog is open.
+    # Mismatched labels make `_edit_label` disable the text field while the
+    # dialog is open. Pin the assumption so a fixture-data shuffle fails
+    # loudly instead of silently dodging the disable branch.
     win = annotated_with_labels
     canvas = win._canvas_widgets.canvas
     label_list = win._docks.label_list
     label_dialog = win._label_dialog
     original_labels = [s.label for s in canvas.shapes]
+    assert original_labels[0] != original_labels[3], (
+        "Test fixture expects mismatched labels at indices 0 and 3"
+    )
 
     label_list.clearSelection()
     label_list.select_item(label_list[0])
