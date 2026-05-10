@@ -121,6 +121,15 @@ _AI_MODEL = "efficientsam:10m"
             "mask",
             id="ai_box-mask",
         ),
+        pytest.param(
+            "ai_box_to_shape",
+            [(0.3, 0.3)],
+            (0.7, 0.7),
+            Qt.NoModifier,
+            4,
+            "oriented_rectangle",
+            id="ai_box-oriented_rectangle",
+        ),
     ],
 )
 def test_annotate_shape_types(
@@ -134,7 +143,7 @@ def test_annotate_shape_types(
     finalize_click: tuple[float, float],
     finalize_modifier: Qt.KeyboardModifier,
     expected_num_points: int | None,
-    ai_output_format: Literal["polygon", "mask"] | None,
+    ai_output_format: Literal["polygon", "mask", "oriented_rectangle"] | None,
 ) -> None:
     expected_shape_type = ai_output_format if ai_output_format else create_mode
 

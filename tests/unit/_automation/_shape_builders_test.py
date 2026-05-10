@@ -4,6 +4,7 @@ import math
 
 import numpy as np
 import pytest
+from numpy.typing import NDArray
 
 from labelme._automation import Detection
 from labelme._automation import shapes_from_detections
@@ -41,3 +42,89 @@ def test_shapes_from_detections_circle_without_mask_falls_back_to_inscribed() ->
     assert shape.points[0].y() == pytest.approx(10)
     assert shape.points[1].x() == pytest.approx(10)
     assert shape.points[1].y() == pytest.approx(10)
+
+
+def test_shapes_from_detections_oriented_rectangle_with_mask_uses_min_area_rect() -> (
+    None
+):
+    # Wider-than-tall rectangular mask: long axis is +x in mask-local coords,
+    # so corners trace (xmin, ymin) → (xmax, ymin) → (xmax, ymax) → (xmin, ymax).
+    # World corners are mask-local corners offset by the bbox origin.
+    [shape] = shapes_from_detections(
+        detections=[
+            Detection(
+                bbox=(10, 20, 30, 30),
+                mask=np.ones((11, 21), dtype=bool),
+            )
+        ],
+        shape_type="oriented_rectangle",
+    )
+
+    assert shape.shape_type == "oriented_rectangle"
+    expected = [(10, 20), (30, 20), (30, 30), (10, 30)]
+    for i, (x, y) in enumerate(expected):
+        assert (shape.points[i].x(), shape.points[i].y()) == pytest.approx((x, y))
+
+
+def test_shapes_from_detections_oriented_rectangle_without_mask_falls_back() -> None:
+    [shape] = shapes_from_detections(
+        detections=[Detection(bbox=(0, 0, 10, 20))],
+        shape_type="oriented_rectangle",
+    )
+
+    assert shape.shape_type == "oriented_rectangle"
+    expected = [(0, 0), (10, 0), (10, 20), (0, 20)]
+    for i, (x, y) in enumerate(expected):
+        assert (shape.points[i].x(), shape.points[i].y()) == pytest.approx((x, y))
+
+
+def test_shapes_from_detections_oriented_rectangle_with_rotated_mask(
+    rotated_rectangle_mask: NDArray[np.bool_],
+    rotated_rectangle_angle: float,
+) -> None:
+    # The mask is centred at (20, 20); placing it at bbox origin (50, 100)
+    # offsets the world centre to (70, 120).
+    [shape] = shapes_from_detections(
+        detections=[Detection(bbox=(50, 100, 90, 140), mask=rotated_rectangle_mask)],
+        shape_type="oriented_rectangle",
+    )
+
+    assert shape.shape_type == "oriented_rectangle"
+    edge_dx = shape.points[1].x() - shape.points[0].x()
+    edge_dy = shape.points[1].y() - shape.points[0].y()
+    recovered_angle = math.atan2(edge_dy, edge_dx)
+    assert recovered_angle == pytest.approx(
+        rotated_rectangle_angle, abs=math.radians(3)
+    )
+    centre_x = sum(p.x() for p in shape.points) / 4
+    centre_y = sum(p.y() for p in shape.points) / 4
+    assert centre_x == pytest.approx(70.0, abs=0.5)
+    assert centre_y == pytest.approx(120.0, abs=0.5)
+
+
+def test_shapes_from_detections_oriented_rectangle_with_square_mask() -> None:
+    # The minimum-area rectangle of a square mask is the axis-aligned bbox,
+    # so the offset corners trace the bbox itself.
+    [shape] = shapes_from_detections(
+        detections=[Detection(bbox=(0, 0, 10, 10), mask=np.ones((11, 11), dtype=bool))],
+        shape_type="oriented_rectangle",
+    )
+
+    assert shape.shape_type == "oriented_rectangle"
+    expected = [(0, 0), (10, 0), (10, 10), (0, 10)]
+    for i, (x, y) in enumerate(expected):
+        assert (shape.points[i].x(), shape.points[i].y()) == pytest.approx((x, y))
+
+
+def test_shapes_from_detections_oriented_rectangle_square_mask_no_bbox() -> None:
+    # Without a bbox the mask coordinates are emitted as-is; the square mask
+    # still produces a valid axis-aligned rectangle rather than being dropped.
+    [shape] = shapes_from_detections(
+        detections=[Detection(mask=np.ones((11, 11), dtype=bool))],
+        shape_type="oriented_rectangle",
+    )
+
+    assert shape.shape_type == "oriented_rectangle"
+    expected = [(0, 0), (10, 0), (10, 10), (0, 10)]
+    for i, (x, y) in enumerate(expected):
+        assert (shape.points[i].x(), shape.points[i].y()) == pytest.approx((x, y))
