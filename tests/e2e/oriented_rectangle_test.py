@@ -14,6 +14,7 @@ from labelme.widgets.canvas import Canvas
 from ..conftest import close_or_pause
 from .conftest import click_canvas_fraction
 from .conftest import drag_canvas
+from .conftest import hover_widget_pos
 from .conftest import image_to_widget_pos
 from .conftest import submit_label_dialog
 
@@ -147,13 +148,7 @@ def test_drag_vertex_out_of_pixmap_clips_oriented_rectangle(
 
     start_widget = image_to_widget_pos(canvas=canvas, image_pos=moving_vertex)
     end_widget = image_to_widget_pos(canvas=canvas, image_pos=target_image_pos)
-    # The previous click landed on this same widget pixel, so an immediate
-    # mouseMove there would be deduped by the offscreen platform and skip the
-    # hover refresh. Move away first, then onto the vertex.
-    qtbot.mouseMove(canvas, pos=QPoint(0, 0))
-    qtbot.wait(50)
-    qtbot.mouseMove(canvas, pos=start_widget)
-    qtbot.wait(100)
+    hover_widget_pos(qtbot=qtbot, canvas=canvas, pos=start_widget)
     assert canvas._hovered_vertex == 2
     drag_canvas(
         qtbot=qtbot,

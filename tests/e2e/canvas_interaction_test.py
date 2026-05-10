@@ -7,7 +7,6 @@ from typing import Final
 
 import numpy as np
 import pytest
-from PyQt5.QtCore import QPoint
 from PyQt5.QtCore import QPointF
 from PyQt5.QtCore import Qt
 from pytestqt.qtbot import QtBot
@@ -25,6 +24,7 @@ from ..conftest import close_or_pause
 from .conftest import MainWinFactory
 from .conftest import click_canvas_fraction
 from .conftest import drag_canvas
+from .conftest import hover_widget_pos
 from .conftest import image_to_widget_pos
 from .conftest import schedule_on_dialog
 from .conftest import select_shape
@@ -612,14 +612,8 @@ def test_remove_point_blocked_at_minimum(
 
 
 def _click_to_select(qtbot: QtBot, canvas: Canvas, image_pos: QPointF) -> None:
-    # The previous click may have left the cursor at the same widget pixel,
-    # which the offscreen Qt platform dedupes — nudge first to force a fresh
-    # mouseMoveEvent and refresh hover state before pressing.
-    qtbot.mouseMove(canvas, pos=QPoint(0, 0))
-    qtbot.wait(50)
     pos = image_to_widget_pos(canvas=canvas, image_pos=image_pos)
-    qtbot.mouseMove(canvas, pos=pos)
-    qtbot.wait(50)
+    hover_widget_pos(qtbot=qtbot, canvas=canvas, pos=pos)
     qtbot.mouseClick(canvas, Qt.LeftButton, pos=pos)
     qtbot.wait(50)
 
