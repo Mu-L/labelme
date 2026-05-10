@@ -136,6 +136,17 @@ def main_win(
             pass
 
 
+def hover_widget_pos(qtbot: QtBot, canvas: Canvas, pos: QPoint) -> None:
+    # The offscreen Qt platform dedupes mouseMove events that match the
+    # current cursor position, which suppresses hover-state refresh after a
+    # click that landed on the same pixel. Nudging to (0, 0) first guarantees
+    # the second move is treated as fresh.
+    qtbot.mouseMove(canvas, pos=QPoint(0, 0))
+    qtbot.wait(50)
+    qtbot.mouseMove(canvas, pos=pos)
+    qtbot.wait(50)
+
+
 def click_canvas_fraction(
     qtbot: QtBot,
     canvas: Canvas,
