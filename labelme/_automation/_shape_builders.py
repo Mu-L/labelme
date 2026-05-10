@@ -106,8 +106,9 @@ def _circle_for_detection(detection: Detection) -> Circle | None:
     if detection.mask is not None:
         circle = compute_circle_from_mask(mask=detection.mask)
         if circle is not None:
-            offset_x = detection.bbox[0] if detection.bbox is not None else 0.0
-            offset_y = detection.bbox[1] if detection.bbox is not None else 0.0
+            offset_x, offset_y = (
+                detection.bbox[:2] if detection.bbox is not None else (0.0, 0.0)
+            )
             return Circle(
                 cx=circle.cx + offset_x,
                 cy=circle.cy + offset_y,
