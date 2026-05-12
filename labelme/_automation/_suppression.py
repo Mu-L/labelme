@@ -4,8 +4,13 @@ from dataclasses import dataclass
 from typing import Final
 
 import numpy as np
+import PIL.Image
+import PIL.ImageDraw
 from numpy.typing import NDArray
 
+from labelme._shape import Shape
+
+from ._geometry import shape_to_xyxy_bbox
 from ._shape_builders import Detection
 
 
@@ -48,7 +53,7 @@ def suppress_detections_greedy(
         if detection.bbox is None:
             kept.append(detection)
             continue
-        new_local = _make_local_mask(detection=detection)
+        new_local = _local_mask_from_detection(detection=detection)
         peers = kept_masks_by_label.setdefault(detection.label, [])
         if any(
             _is_redundant_pair(
@@ -61,6 +66,43 @@ def suppress_detections_greedy(
             continue
         kept.append(detection)
         peers.append(new_local)
+    return kept
+
+
+def suppress_detections_overlapping_existing_shapes(
+    *,
+    detections: list[Detection],
+    existing_shapes: list[Shape],
+) -> list[Detection]:
+    OVERLAP_IOU_THRESHOLD: Final[float] = 0.5
+    if not detections:
+        return []
+    existing_masks = [
+        local_mask
+        for local_mask in (
+            _local_mask_from_shape(shape=shape) for shape in existing_shapes
+        )
+        if local_mask is not None
+    ]
+    if not existing_masks:
+        return list(detections)
+
+    kept: list[Detection] = []
+    for detection in detections:
+        if detection.bbox is None:
+            kept.append(detection)
+            continue
+        new_local = _local_mask_from_detection(detection=detection)
+        if any(
+            _is_redundant_pair(
+                new=new_local,
+                peer=existing,
+                iou_threshold=OVERLAP_IOU_THRESHOLD,
+            )
+            for existing in existing_masks
+        ):
+            continue
+        kept.append(detection)
     return kept
 
 
@@ -84,7 +126,7 @@ def _is_redundant_pair(
     return containment >= CONTAINMENT_THRESHOLD
 
 
-def _make_local_mask(*, detection: Detection) -> _LocalMask:
+def _local_mask_from_detection(*, detection: Detection) -> _LocalMask:
     xmin, ymin, xmax, ymax = np.array(detection.bbox).round().astype(int).tolist()
     if detection.mask is None:
         h, w = ymax - ymin + 1, xmax - xmin + 1
@@ -104,6 +146,74 @@ def _make_local_mask(*, detection: Detection) -> _LocalMask:
         origin_xy=(xmin, ymin),
         area=int(np.count_nonzero(detection.mask)),
     )
+
+
+def _local_mask_from_shape(*, shape: Shape) -> _LocalMask | None:
+    # Skip non-bbox shapes (point/line/linestrip) so callers can pass
+    # canvas.shapes unfiltered.
+    if shape.shape_type not in (
+        "rectangle",
+        "polygon",
+        "circle",
+        "oriented_rectangle",
+        "mask",
+    ):
+        return None
+    bbox = shape_to_xyxy_bbox(shape=shape)
+    if bbox is None:
+        return None
+    xmin, ymin, xmax, ymax = (int(round(v)) for v in bbox.tolist())
+    width = xmax - xmin + 1
+    height = ymax - ymin + 1
+    mask = _rasterize_shape(
+        shape=shape, xmin=xmin, ymin=ymin, width=width, height=height
+    )
+    return _LocalMask(
+        mask=mask,
+        origin_xy=(xmin, ymin),
+        area=int(np.count_nonzero(mask)),
+    )
+
+
+def _rasterize_shape(
+    *, shape: Shape, xmin: int, ymin: int, width: int, height: int
+) -> NDArray[np.bool_]:
+    if shape.shape_type == "mask":
+        if shape.mask is None:
+            return np.ones((height, width), dtype=np.bool_)
+        # Same bbox-extent contract as detection masks.
+        if shape.mask.shape != (height, width):
+            raise ValueError(
+                f"mask shape {shape.mask.shape} does not match "
+                f"bbox-derived extent {(height, width)}"
+            )
+        return shape.mask.astype(np.bool_, copy=False)
+    if shape.shape_type == "rectangle":
+        return np.ones((height, width), dtype=np.bool_)
+    if shape.shape_type == "circle":
+        center, edge = shape.points
+        cx_local = center.x() - xmin
+        cy_local = center.y() - ymin
+        radius = float(np.hypot(edge.x() - center.x(), edge.y() - center.y()))
+        image = PIL.Image.new("L", (width, height), 0)
+        draw = PIL.ImageDraw.Draw(image)
+        draw.ellipse(
+            (
+                cx_local - radius,
+                cy_local - radius,
+                cx_local + radius,
+                cy_local + radius,
+            ),
+            fill=1,
+        )
+        return np.asarray(image, dtype=np.bool_)
+    if shape.shape_type in ("polygon", "oriented_rectangle"):
+        image = PIL.Image.new("L", (width, height), 0)
+        draw = PIL.ImageDraw.Draw(image)
+        points_local = [(p.x() - xmin, p.y() - ymin) for p in shape.points]
+        draw.polygon(points_local, fill=1)
+        return np.asarray(image, dtype=np.bool_)
+    raise ValueError(f"Unsupported shape_type: {shape.shape_type!r}")
 
 
 def _compute_mask_intersection_area(*, a: _LocalMask, b: _LocalMask) -> int:

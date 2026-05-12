@@ -5,9 +5,12 @@ import math
 import numpy as np
 import pytest
 from numpy.typing import NDArray
+from PyQt5 import QtCore
 
 from labelme._automation._geometry import compute_circle_from_mask
 from labelme._automation._geometry import compute_oriented_rectangle_from_mask
+from labelme._automation._geometry import shape_to_xyxy_bbox
+from labelme._shape import Shape
 
 
 def test_compute_circle_from_mask_returns_none_when_empty() -> None:
@@ -105,6 +108,54 @@ def test_compute_oriented_rectangle_from_mask_square_mask_is_axis_aligned() -> N
         dtype=np.float32,
     )
     assert corners == pytest.approx(expected)
+
+
+def test_shape_to_xyxy_bbox_circle() -> None:
+    shape = Shape(shape_type="circle")
+    shape.add_point(QtCore.QPointF(50, 40))
+    shape.add_point(QtCore.QPointF(53, 44))
+
+    bbox = shape_to_xyxy_bbox(shape=shape)
+
+    radius = math.sqrt((53 - 50) ** 2 + (44 - 40) ** 2)
+    assert bbox is not None
+    assert bbox.tolist() == pytest.approx(
+        [50 - radius, 40 - radius, 50 + radius, 40 + radius]
+    )
+
+
+def test_shape_to_xyxy_bbox_polygon() -> None:
+    shape = Shape(shape_type="polygon")
+    for x, y in [(1, 2), (10, 4), (6, 12)]:
+        shape.add_point(QtCore.QPointF(x, y))
+
+    bbox = shape_to_xyxy_bbox(shape=shape)
+
+    assert bbox is not None
+    assert bbox.tolist() == pytest.approx([1, 2, 10, 12])
+
+
+def test_shape_to_xyxy_bbox_returns_none_when_polygon_has_too_few_points() -> None:
+    shape = Shape(shape_type="polygon")
+    shape.add_point(QtCore.QPointF(0, 0))
+    shape.add_point(QtCore.QPointF(10, 10))
+
+    assert shape_to_xyxy_bbox(shape=shape) is None
+
+
+def test_shape_to_xyxy_bbox_returns_none_when_circle_has_only_center() -> None:
+    shape = Shape(shape_type="circle")
+    shape.add_point(QtCore.QPointF(5, 5))
+
+    assert shape_to_xyxy_bbox(shape=shape) is None
+
+
+def test_shape_to_xyxy_bbox_raises_on_unsupported_shape_type() -> None:
+    shape = Shape(shape_type="point")
+    shape.add_point(QtCore.QPointF(1, 2))
+
+    with pytest.raises(ValueError, match="Unsupported shape_type"):
+        shape_to_xyxy_bbox(shape=shape)
 
 
 def test_compute_oriented_rectangle_from_mask_l_shape_is_axis_aligned() -> None:

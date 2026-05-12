@@ -8,11 +8,47 @@ import skimage
 from loguru import logger
 from numpy.typing import NDArray
 
+from labelme._shape import Shape
+
 
 class Circle(NamedTuple):
     cx: float
     cy: float
     radius: float
+
+
+def shape_to_xyxy_bbox(*, shape: Shape) -> NDArray[np.float32] | None:
+    """Returns None only when a supported shape is mid-draw (too few points);
+    raises ValueError for shape types that have no bbox interpretation.
+    """
+    if shape.shape_type == "circle":
+        if len(shape.points) != 2:
+            return None
+        center, edge = shape.points
+        radius = float(np.hypot(edge.x() - center.x(), edge.y() - center.y()))
+        return np.array(
+            [
+                center.x() - radius,
+                center.y() - radius,
+                center.x() + radius,
+                center.y() + radius,
+            ],
+            dtype=np.float32,
+        )
+    minimum_points_by_shape_type = {
+        "rectangle": 2,
+        "mask": 2,
+        "polygon": 3,
+        "oriented_rectangle": 4,
+    }
+    if shape.shape_type not in minimum_points_by_shape_type:
+        raise ValueError(f"Unsupported shape_type: {shape.shape_type!r}")
+    if len(shape.points) < minimum_points_by_shape_type[shape.shape_type]:
+        return None
+    points = np.array([[p.x(), p.y()] for p in shape.points])
+    xmin, ymin = points.min(axis=0)
+    xmax, ymax = points.max(axis=0)
+    return np.array([xmin, ymin, xmax, ymax], dtype=np.float32)
 
 
 def compute_circle_from_mask(mask: NDArray[np.bool_]) -> Circle | None:
