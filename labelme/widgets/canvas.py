@@ -748,22 +748,22 @@ class Canvas(QtWidgets.QWidget):
             current.add_point(self._line.points[1], autoclose=True)
             self._line.points[0] = current.points[-1]
             if current.is_closed():
-                self._finalise()
+                self._finalize()
         elif mode == "oriented_rectangle":
             if len(current.points) == 4:
-                self._finalise()
+                self._finalize()
             else:
                 assert len(current.points) == 1
                 self._lock_oriented_rectangle_first_edge(current=current)
         elif mode in ("rectangle", "circle", "line", "ai_box_to_shape"):
             assert len(current.points) == 1
             current.points = self._line.points
-            self._finalise()
+            self._finalize()
         elif mode == "linestrip":
             current.add_point(self._line.points[1])
             self._line.points[0] = current.points[-1]
             if int(modifiers) == Qt.ControlModifier:
-                self._finalise()
+                self._finalize()
         elif mode == "ai_points_to_shape":
             current.add_point(
                 self._line.points[1],
@@ -772,7 +772,7 @@ class Canvas(QtWidgets.QWidget):
             self._line.points[0] = current.points[-1]
             self._line.point_labels[0] = current.point_labels[-1]
             if modifiers & Qt.ControlModifier:
-                self._finalise()
+                self._finalize()
 
     def _lock_oriented_rectangle_first_edge(self, current: Shape) -> None:
         first_corner = self._line.points[0]
@@ -813,10 +813,10 @@ class Canvas(QtWidgets.QWidget):
         self._current = new_shape
 
         if mode == "point":
-            self._finalise()
+            self._finalize()
             return
         if mode == "ai_points_to_shape" and event.modifiers() & Qt.ControlModifier:
-            self._finalise()
+            self._finalize()
             return
 
         if mode == "circle":
@@ -993,7 +993,7 @@ class Canvas(QtWidgets.QWidget):
             return
         if not self._can_close_shape():
             return
-        self._finalise()
+        self._finalize()
 
     def select_shapes(self, shapes: list[Shape]) -> None:
         self.selection_changed.emit(shapes)
@@ -1324,7 +1324,7 @@ class Canvas(QtWidgets.QWidget):
             return True
         return False
 
-    def _finalise(self) -> None:
+    def _finalize(self) -> None:
         assert self._current is not None
         new_shapes: list[Shape] = self._build_new_shapes_from_current()
         if not new_shapes:
@@ -1374,7 +1374,7 @@ class Canvas(QtWidgets.QWidget):
         if viewport is None:
             return QtCore.QSize(scaled_w, scaled_h)
         # Overscroll only along axes where the image actually overflows the
-        # viewport. Half a viewport of slack (split evenly around the centred
+        # viewport. Half a viewport of slack (split evenly around the centered
         # image) lets each edge be panned a quarter-viewport past the viewport
         # boundary, derived from the viewport rather than a fixed multiplier.
         slack_w = viewport.width() // 2 if scaled_w > viewport.width() else 0
@@ -1419,7 +1419,7 @@ class Canvas(QtWidgets.QWidget):
             if key == Qt.Key_Escape and self._current is not None:
                 self._cancel_current_shape()
             elif key in (Qt.Key_Return, Qt.Key_Space) and self._can_close_shape():
-                self._finalise()
+                self._finalize()
             elif modifiers == Qt.AltModifier:
                 self._snapping = False
         elif self.mode == _CanvasMode.EDIT:
