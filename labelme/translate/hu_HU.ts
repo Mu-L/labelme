@@ -895,5 +895,10 @@ Kérjük, válasszon másik modellt vagy használja az AI-Box módot.</translati
         <source>Start drawing oriented rectangles</source>
         <translation>Irányított téglalapok rajzolásának megkezdése</translation>
     </message>
+    <message>
+        <location filename="../app.py" line="0"/>
+        <source>AI inference produced no new annotation.</source>
+        <translation>Az MI-következtetés nem hozott létre új annotációt.</translation>
+    </message>
 </context>
 </TS>

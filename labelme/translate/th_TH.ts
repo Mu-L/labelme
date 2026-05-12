@@ -889,5 +889,10 @@ Please select a different model or use AI-Box mode.</source>
         <source>Start drawing oriented rectangles</source>
         <translation>เริ่มวาดสี่เหลี่ยมมีทิศทาง</translation>
     </message>
+    <message>
+        <location filename="../app.py" line="0"/>
+        <source>AI inference produced no new annotation.</source>
+        <translation>การอนุมานของ AI ไม่ได้สร้างคำอธิบายประกอบใหม่</translation>
+    </message>
 </context>
 </TS>

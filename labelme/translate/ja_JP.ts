@@ -903,5 +903,10 @@ Please select a different model or use AI-Box mode.</source>
         <source>Start drawing oriented rectangles</source>
         <translation>向き付き矩形の描画を開始</translation>
     </message>
+    <message>
+        <location filename="../app.py" line="0"/>
+        <source>AI inference produced no new annotation.</source>
+        <translation>AI推論で新しいアノテーションは生成されませんでした。</translation>
+    </message>
 </context>
 </TS>

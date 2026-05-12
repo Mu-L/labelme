@@ -125,6 +125,36 @@ def test_shape_visibility_survives_backup_and_restore(canvas: Canvas) -> None:
     assert canvas.shapes[0].visible is False
 
 
+@pytest.mark.gui
+@pytest.mark.parametrize("create_mode", ["ai_box_to_shape", "ai_points_to_shape"])
+def test_finalize_with_empty_inference_resets_state_and_notifies(
+    canvas: Canvas,
+    monkeypatch: pytest.MonkeyPatch,
+    create_mode: str,
+) -> None:
+    # AI-Box / AI-Points inference can return no shapes (e.g. dedup suppresses
+    # an overlapping detection). The empty branch of _finalize must reset the
+    # in-progress drawing state so the edit-mode button becomes usable again
+    # and notify the user that inference produced nothing.
+    monkeypatch.setattr(canvas, "_shapes_from_points_ai", lambda **_: [])
+    monkeypatch.setattr(canvas, "_shapes_from_bbox_ai", lambda **_: [])
+    canvas.create_mode = create_mode
+    canvas._current = Shape(shape_type="rectangle")
+    drawing_polygon_emissions: list[bool] = []
+    inference_no_shapes_emissions: list[None] = []
+    canvas.drawing_polygon.connect(drawing_polygon_emissions.append)
+    canvas.inference_produced_no_shapes.connect(
+        lambda: inference_no_shapes_emissions.append(None)
+    )
+
+    canvas._finalize()
+
+    assert drawing_polygon_emissions == [False]
+    assert len(inference_no_shapes_emissions) == 1
+    assert canvas._current is None
+    assert canvas.shapes == []
+
+
 _IMAGE_SIZE: Final[QSize] = QSize(100, 50)
 
 

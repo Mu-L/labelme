@@ -895,5 +895,10 @@ Bitte wählen Sie ein anderes Modell oder verwenden Sie den AI-Box-Modus.</trans
         <source>Start drawing oriented rectangles</source>
         <translation>Mit dem Zeichnen von orientierten Rechtecken beginnen</translation>
     </message>
+    <message>
+        <location filename="../app.py" line="0"/>
+        <source>AI inference produced no new annotation.</source>
+        <translation>KI-Inferenz hat keine neue Annotation erzeugt.</translation>
+    </message>
 </context>
 </TS>

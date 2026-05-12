@@ -889,5 +889,10 @@ Selecteer een ander model of gebruik de AI-Box-modus.</translation>
         <source>Start drawing oriented rectangles</source>
         <translation>Begin met tekenen van georiënteerde rechthoeken</translation>
     </message>
+    <message>
+        <location filename="../app.py" line="0"/>
+        <source>AI inference produced no new annotation.</source>
+        <translation>AI-inferentie heeft geen nieuwe annotatie geproduceerd.</translation>
+    </message>
 </context>
 </TS>
