@@ -264,29 +264,3 @@ def test_snapshot_after_polygon_commit(
     )
 
     close_or_pause(qtbot=qtbot, widget=raw_win, pause=pause)
-
-
-@pytest.mark.gui
-def test_snapshot_hide_background_shapes(
-    qtbot: QtBot,
-    annotated_win: MainWindow,
-    snapshot_dir: Path,
-    update_snapshots: bool,
-    pause: bool,
-) -> None:
-    canvas = annotated_win._canvas_widgets.canvas
-    assert len(canvas.shapes) > 1
-    _pin_canvas_for_snapshot(qtbot=qtbot, canvas=canvas)
-
-    select_shape(qtbot=qtbot, canvas=canvas, shape_index=0)
-
-    canvas.hide_background_shapes(value=True)
-    qtbot.wait(_PAINT_SETTLE_MS)
-
-    _check_or_update_snapshot(
-        canvas=canvas,
-        snapshot_path=snapshot_dir / "canvas/hide_background_shapes.png",
-        update_snapshots=update_snapshots,
-    )
-
-    close_or_pause(qtbot=qtbot, widget=annotated_win, pause=pause)

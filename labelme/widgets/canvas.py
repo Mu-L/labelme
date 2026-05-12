@@ -135,8 +135,6 @@ class Canvas(QtWidgets.QWidget):
         self._rotation_original_points = []
         self.scale: float = 1.0
         self._osam_session = None
-        self._hide_background: bool = False
-        self._hide_background_enabled: bool = False
         self._snapping = True
         self._hovered_shape_is_selected: bool = False
         self._painter = QtGui.QPainter()
@@ -827,7 +825,6 @@ class Canvas(QtWidgets.QWidget):
         self._line.point_labels = (
             [0, 0] if mode == "ai_points_to_shape" and is_shift_pressed else [1, 1]
         )
-        self._set_hide_background()
         self.drawing_polygon.emit(True)
         self.update()
 
@@ -972,16 +969,6 @@ class Canvas(QtWidgets.QWidget):
         for original, copy in zip(self.selected_shapes, self._selected_shapes_copy):
             original.points = copy.points
 
-    def hide_background_shapes(self, value: bool) -> None:
-        self._hide_background_enabled = value
-        if not self.selected_shapes:
-            return
-        self._set_hide_background(True)
-        self.update()
-
-    def _set_hide_background(self, enable: bool = True) -> None:
-        self._hide_background = self._hide_background_enabled if enable else False
-
     def _can_close_shape(self) -> bool:
         if self.mode != _CanvasMode.CREATE:
             return False
@@ -1009,7 +996,6 @@ class Canvas(QtWidgets.QWidget):
         self._finalise()
 
     def select_shapes(self, shapes: list[Shape]) -> None:
-        self._set_hide_background()
         self.selection_changed.emit(shapes)
         self.update()
 
@@ -1029,7 +1015,6 @@ class Canvas(QtWidgets.QWidget):
                 self.update()
             return
 
-        self._set_hide_background()
         already_selected = clicked_shape in self.selected_shapes
         if already_selected:
             self._hovered_shape_is_selected = True
@@ -1160,7 +1145,6 @@ class Canvas(QtWidgets.QWidget):
     def deselect_shape(self) -> bool:
         if not self.selected_shapes:
             return False
-        self._set_hide_background(False)
         self.selection_changed.emit([])
         self._hovered_shape_is_selected = False
         return True
@@ -1254,11 +1238,7 @@ class Canvas(QtWidgets.QWidget):
 
     def _draw_committed_shapes_layer(self, painter: QtGui.QPainter) -> None:
         for shape in self.shapes:
-            if not _is_shape_paintable(
-                shape=shape,
-                visible=shape.visible,
-                hide_background=self._hide_background,
-            ):
+            if not shape.visible:
                 continue
             shape.fill = _is_shape_filled(shape=shape, hovered_shape=self.hovered_shape)
             _shape.paint(shape=shape, painter=painter)
@@ -1368,7 +1348,6 @@ class Canvas(QtWidgets.QWidget):
 
     def _reset_after_shape_creation(self) -> None:
         self._current = None
-        self._set_hide_background(False)
         self.new_shape.emit()
         self.update()
 
@@ -1688,14 +1667,6 @@ def _pick_pending_moved_shape(
     if hovered_shape not in shapes:
         return None
     return hovered_shape
-
-
-def _is_shape_paintable(shape: Shape, visible: bool, hide_background: bool) -> bool:
-    if not visible:
-        return False
-    if hide_background and not shape.selected:
-        return False
-    return True
 
 
 def _is_shape_filled(shape: Shape, hovered_shape: Shape | None) -> bool:
