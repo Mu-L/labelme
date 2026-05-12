@@ -889,5 +889,10 @@ Please select a different model or use AI-Box mode.</source>
         <source>Start drawing oriented rectangles</source>
         <translation>开始绘制有向矩形</translation>
     </message>
+    <message>
+        <location filename="../app.py" line="0"/>
+        <source>AI inference produced no new annotation.</source>
+        <translation>AI 推理未生成新标注。</translation>
+    </message>
 </context>
 </TS>

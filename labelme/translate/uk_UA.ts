@@ -892,5 +892,10 @@ Please select a different model or use AI-Box mode.</source>
         <source>Start drawing oriented rectangles</source>
         <translation>Почніть малювати орієнтовані прямокутники</translation>
     </message>
+    <message>
+        <location filename="../app.py" line="0"/>
+        <source>AI inference produced no new annotation.</source>
+        <translation>Інференс ШІ не створив нової анотації.</translation>
+    </message>
 </context>
 </TS>

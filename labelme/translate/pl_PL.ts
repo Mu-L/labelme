@@ -889,5 +889,10 @@ Wybierz inny model lub użyj trybu AI-Box.</translation>
         <source>Start drawing oriented rectangles</source>
         <translation>Rozpocznij rysowanie prostokątów zorientowanych</translation>
     </message>
+    <message>
+        <location filename="../app.py" line="0"/>
+        <source>AI inference produced no new annotation.</source>
+        <translation>Wnioskowanie AI nie utworzyło nowej adnotacji.</translation>
+    </message>
 </context>
 </TS>

@@ -889,5 +889,10 @@ Vui lòng chọn mô hình khác hoặc sử dụng chế độ AI-Box.</transla
         <source>Start drawing oriented rectangles</source>
         <translation>Bắt đầu vẽ hình chữ nhật có hướng</translation>
     </message>
+    <message>
+        <location filename="../app.py" line="0"/>
+        <source>AI inference produced no new annotation.</source>
+        <translation>Suy luận AI không tạo ra chú thích mới nào.</translation>
+    </message>
 </context>
 </TS>

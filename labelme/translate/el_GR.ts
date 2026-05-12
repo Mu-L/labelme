@@ -891,5 +891,10 @@ Please select a different model or use AI-Box mode.</source>
         <source>Start drawing oriented rectangles</source>
         <translation>Ξεκινήστε να σχεδιάζετε προσανατολισμένα ορθογώνια</translation>
     </message>
+    <message>
+        <location filename="../app.py" line="0"/>
+        <source>AI inference produced no new annotation.</source>
+        <translation>Η συμπερασματική επεξεργασία ΤΝ δεν δημιούργησε νέο σχολιασμό.</translation>
+    </message>
 </context>
 </TS>

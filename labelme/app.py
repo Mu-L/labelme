@@ -1064,6 +1064,9 @@ class MainWindow(QtWidgets.QMainWindow):
         canvas.pan_request.connect(self._on_pan_request)
 
         canvas.new_shape.connect(self._on_new_shape)
+        canvas.inference_produced_no_shapes.connect(
+            self._on_inference_produced_no_shapes
+        )
         canvas.shape_moved.connect(self.mark_dirty)
         canvas.selection_changed.connect(self._on_shape_selection_changed)
         canvas.drawing_polygon.connect(self._on_drawing_polygon_changed)
@@ -1803,6 +1806,11 @@ class MainWindow(QtWidgets.QMainWindow):
         else:
             self._canvas_widgets.canvas.undo_last_line()
             self._canvas_widgets.canvas.shape_backups.pop()
+
+    def _on_inference_produced_no_shapes(self) -> None:
+        self.show_status_message(
+            self.tr("AI inference produced no new annotation."), 5000
+        )
 
     def _on_scroll_request(self, delta: int, orientation: Qt.Orientation) -> None:
         units = -delta * 0.1  # natural scroll

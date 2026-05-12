@@ -52,6 +52,11 @@ _CreateMode = Literal[
     "ai_box_to_shape",
 ]
 
+_AI_CREATE_MODES: Final[tuple[_CreateMode, ...]] = (
+    "ai_points_to_shape",
+    "ai_box_to_shape",
+)
+
 
 class _CanvasMode(enum.Enum):
     CREATE = enum.auto()
@@ -81,6 +86,7 @@ class Canvas(QtWidgets.QWidget):
     scroll_request = QtCore.pyqtSignal(int, int)
     pan_request = QtCore.pyqtSignal(QPoint)
     new_shape = QtCore.pyqtSignal()
+    inference_produced_no_shapes = QtCore.pyqtSignal()
     selection_changed = QtCore.pyqtSignal(list)
     shape_moved = QtCore.pyqtSignal()
     drawing_polygon = QtCore.pyqtSignal(bool)
@@ -1330,15 +1336,20 @@ class Canvas(QtWidgets.QWidget):
 
     def _finalize(self) -> None:
         assert self._current is not None
-        new_shapes: list[Shape] = self._build_new_shapes_from_current()
-        if not new_shapes:
-            self._current = None
-            return
+        if self.create_mode in _AI_CREATE_MODES:
+            new_shapes = self._build_new_shapes_from_ai_inference()
+            if not new_shapes:
+                self.inference_produced_no_shapes.emit()
+                self._cancel_current_shape()
+                return
+        else:
+            self._current.close()
+            new_shapes = [self._current]
         self.shapes.extend(new_shapes)
         self.backup_shapes()
         self._reset_after_shape_creation()
 
-    def _build_new_shapes_from_current(self) -> list[Shape]:
+    def _build_new_shapes_from_ai_inference(self) -> list[Shape]:
         assert self._current is not None
         if self.create_mode == "ai_points_to_shape":
             return self._shapes_from_points_ai(
@@ -1347,8 +1358,7 @@ class Canvas(QtWidgets.QWidget):
             )
         if self.create_mode == "ai_box_to_shape":
             return self._shapes_from_bbox_ai(bbox_points=self._current.points)
-        self._current.close()
-        return [self._current]
+        raise AssertionError(f"unreachable: {self.create_mode}")
 
     def _reset_after_shape_creation(self) -> None:
         self._current = None
@@ -1475,7 +1485,7 @@ class Canvas(QtWidgets.QWidget):
 
     def undo_last_line(self) -> None:
         assert self.shapes
-        if self.create_mode in ("ai_points_to_shape", "ai_box_to_shape"):
+        if self.create_mode in _AI_CREATE_MODES:
             # Remove all unlabeled shapes at the tail (added by AI in one shot)
             while self.shapes and self.shapes[-1].label is None:
                 self.shapes.pop()

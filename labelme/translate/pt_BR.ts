@@ -889,5 +889,10 @@ Selecione um modelo diferente ou use o modo AI-Box.</translation>
         <source>Start drawing oriented rectangles</source>
         <translation>Começar a desenhar retângulos orientados</translation>
     </message>
+    <message>
+        <location filename="../app.py" line="0"/>
+        <source>AI inference produced no new annotation.</source>
+        <translation>A inferência de IA não produziu nenhuma nova anotação.</translation>
+    </message>
 </context>
 </TS>

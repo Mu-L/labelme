@@ -892,5 +892,10 @@ Lütfen farklı bir model seçin veya AI-Box modunu kullanın.</translation>
         <source>Start drawing oriented rectangles</source>
         <translation>Yönlü dikdörtgen çizmeye başla</translation>
     </message>
+    <message>
+        <location filename="../app.py" line="0"/>
+        <source>AI inference produced no new annotation.</source>
+        <translation>Yapay zeka çıkarımı yeni bir açıklama oluşturmadı.</translation>
+    </message>
 </context>
 </TS>
