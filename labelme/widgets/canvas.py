@@ -2,9 +2,12 @@ from __future__ import annotations
 
 import collections
 import enum
+import typing
 from collections.abc import Callable
 from typing import Any
 from typing import Final
+from typing import Literal
+from typing import cast
 
 import imgviz
 import numpy as np
@@ -36,6 +39,18 @@ CURSOR_MOVE = Qt.ClosedHandCursor
 CURSOR_GRAB = Qt.OpenHandCursor
 
 MOVE_SPEED: float = 5.0
+
+_CreateMode = Literal[
+    "polygon",
+    "rectangle",
+    "oriented_rectangle",
+    "circle",
+    "line",
+    "point",
+    "linestrip",
+    "ai_points_to_shape",
+    "ai_box_to_shape",
+]
 
 
 class _CanvasMode(enum.Enum):
@@ -76,8 +91,7 @@ class Canvas(QtWidgets.QWidget):
 
     mode: _CanvasMode = _CanvasMode.EDIT
 
-    # polygon, rectangle, line, or point
-    _create_mode = "polygon"
+    _create_mode: _CreateMode = "polygon"
 
     _fill_drawing = False
 
@@ -150,24 +164,14 @@ class Canvas(QtWidgets.QWidget):
         self._fill_drawing = value
 
     @property
-    def create_mode(self) -> str:
+    def create_mode(self) -> _CreateMode:
         return self._create_mode
 
     @create_mode.setter
     def create_mode(self, value: str) -> None:
-        if value not in [
-            "polygon",
-            "rectangle",
-            "oriented_rectangle",
-            "circle",
-            "line",
-            "point",
-            "linestrip",
-            "ai_points_to_shape",
-            "ai_box_to_shape",
-        ]:
+        if value not in typing.get_args(_CreateMode):
             raise ValueError(f"Unsupported create_mode: {value}")
-        self._create_mode = value
+        self._create_mode = cast(_CreateMode, value)
 
     def get_ai_model_name(self) -> str:
         return self._osam_session_model_name
