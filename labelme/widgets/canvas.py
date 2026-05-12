@@ -1374,7 +1374,7 @@ class Canvas(QtWidgets.QWidget):
         if viewport is None:
             return QtCore.QSize(scaled_w, scaled_h)
         # Overscroll only along axes where the image actually overflows the
-        # viewport. Half a viewport of slack (split evenly around the centred
+        # viewport. Half a viewport of slack (split evenly around the centered
         # image) lets each edge be panned a quarter-viewport past the viewport
         # boundary, derived from the viewport rather than a fixed multiplier.
         slack_w = viewport.width() // 2 if scaled_w > viewport.width() else 0

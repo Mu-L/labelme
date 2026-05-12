@@ -102,8 +102,8 @@ def test_shapes_from_detections_oriented_rectangle_with_rotated_mask(
     rotated_rectangle_mask: NDArray[np.bool_],
     rotated_rectangle_angle: float,
 ) -> None:
-    # The mask is centred at (20, 20); placing it at bbox origin (50, 100)
-    # offsets the world centre to (70, 120).
+    # The mask is centered at (20, 20); placing it at bbox origin (50, 100)
+    # offsets the world center to (70, 120).
     [shape] = shapes_from_detections(
         detections=[Detection(bbox=(50, 100, 90, 140), mask=rotated_rectangle_mask)],
         shape_type="oriented_rectangle",
@@ -116,10 +116,10 @@ def test_shapes_from_detections_oriented_rectangle_with_rotated_mask(
     assert recovered_angle == pytest.approx(
         rotated_rectangle_angle, abs=math.radians(3)
     )
-    centre_x = sum(p.x() for p in shape.points) / 4
-    centre_y = sum(p.y() for p in shape.points) / 4
-    assert centre_x == pytest.approx(70.0, abs=0.5)
-    assert centre_y == pytest.approx(120.0, abs=0.5)
+    center_x = sum(p.x() for p in shape.points) / 4
+    center_y = sum(p.y() for p in shape.points) / 4
+    assert center_x == pytest.approx(70.0, abs=0.5)
+    assert center_y == pytest.approx(120.0, abs=0.5)
 
 
 def test_shapes_from_detections_oriented_rectangle_with_square_mask() -> None:
