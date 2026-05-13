@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from typing import NamedTuple
 
-import imgviz
 import numpy as np
 import scipy.spatial
 import skimage
@@ -123,14 +122,5 @@ def compute_polygon_from_mask(mask: NDArray[np.bool_]) -> NDArray[np.float32]:
     )
     polygon = np.clip(polygon, (0, 0), (mask.shape[0] - 1, mask.shape[1] - 1))
     polygon = polygon[:-1]  # drop last point that is duplicate of first point
-
-    if 0:
-        import PIL.Image
-
-        image_pil = PIL.Image.fromarray(imgviz.gray2rgb(imgviz.bool2ubyte(mask)))
-        imgviz.draw.line_(image_pil, yx=polygon, fill=(0, 255, 0))
-        for point in polygon:
-            imgviz.draw.circle_(image_pil, center=point, diameter=10, fill=(0, 255, 0))
-        imgviz.io.imsave("contour.jpg", np.asarray(image_pil))
 
     return polygon[:, ::-1]  # yx -> xy
