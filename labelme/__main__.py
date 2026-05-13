@@ -48,10 +48,7 @@ class _LoggerIO(io.StringIO):
 
 
 def _setup_loguru(logger_level: str) -> None:
-    try:
-        logger.remove(handler_id=0)
-    except ValueError:
-        pass
+    logger.remove()
 
     if sys.stderr:
         logger.add(sys.stderr, level=logger_level)
