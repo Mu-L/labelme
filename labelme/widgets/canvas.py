@@ -22,11 +22,8 @@ from PyQt5.QtCore import QRectF
 from PyQt5.QtCore import Qt
 
 import labelme.utils
+from labelme import _automation
 from labelme import _shape
-from labelme._automation import AiOutputFormat
-from labelme._automation import Detection
-from labelme._automation import OsamSession
-from labelme._automation import shapes_from_detections
 from labelme._shape import POLYLINE_SHAPE_TYPES
 from labelme._shape import Shape
 
@@ -111,8 +108,8 @@ class Canvas(QtWidgets.QWidget):
     _pan_anchor: QPointF | None
 
     _osam_session_model_name: str = "sam2:latest"
-    _osam_session: OsamSession | None
-    _ai_output_format: AiOutputFormat = "polygon"
+    _osam_session: _automation.OsamSession | None
+    _ai_output_format: _automation.AiOutputFormat = "polygon"
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:  # noqa: ANN401
         self._epsilon: float = kwargs.pop("epsilon", 10.0)
@@ -185,15 +182,17 @@ class Canvas(QtWidgets.QWidget):
     def set_ai_model_name(self, model_name: str) -> None:
         self._osam_session_model_name = model_name
 
-    def set_ai_output_format(self, output_format: AiOutputFormat) -> None:
+    def set_ai_output_format(self, output_format: _automation.AiOutputFormat) -> None:
         self._ai_output_format = output_format
 
-    def _get_osam_session(self) -> OsamSession:
+    def _get_osam_session(self) -> _automation.OsamSession:
         if (
             self._osam_session is None
             or self._osam_session.model_name != self._osam_session_model_name
         ):
-            self._osam_session = OsamSession(model_name=self._osam_session_model_name)
+            self._osam_session = _automation.OsamSession(
+                model_name=self._osam_session_model_name
+            )
         return self._osam_session
 
     def _shapes_from_ai_points(
@@ -206,7 +205,7 @@ class Canvas(QtWidgets.QWidget):
             points=np.array([[p.x(), p.y()] for p in points]),
             point_labels=np.array(point_labels),
         )
-        return shapes_from_detections(
+        return _automation.shapes_from_detections(
             detections=_detections_from_annotations(response.annotations),
             shape_type=self._ai_output_format,
         )
@@ -221,7 +220,7 @@ class Canvas(QtWidgets.QWidget):
             # point_labels: 2=box corner, 3=opposite box corner (SAM convention)
             point_labels=np.array([2, 3]),
         )
-        return shapes_from_detections(
+        return _automation.shapes_from_detections(
             detections=_detections_from_annotations(response.annotations),
             shape_type=self._ai_output_format,
         )
@@ -1589,7 +1588,7 @@ class Canvas(QtWidgets.QWidget):
 
 def _detections_from_annotations(
     annotations: list[osam.types.Annotation],
-) -> list[Detection]:
+) -> list[_automation.Detection]:
     if not annotations:
         logger.warning("No annotations returned")
         return []
@@ -1598,13 +1597,13 @@ def _detections_from_annotations(
         key=lambda a: a.score if a.score is not None else 0,
         reverse=True,
     )
-    detections: list[Detection] = []
+    detections: list[_automation.Detection] = []
     for annotation in sorted_annotations:
         bbox: tuple[float, float, float, float] | None = None
         if annotation.bounding_box is not None:
             bb = annotation.bounding_box
             bbox = (bb.xmin, bb.ymin, bb.xmax, bb.ymax)
-        detections.append(Detection(bbox=bbox, mask=annotation.mask))
+        detections.append(_automation.Detection(bbox=bbox, mask=annotation.mask))
     return detections
 
 
