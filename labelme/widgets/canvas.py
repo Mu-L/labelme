@@ -210,21 +210,6 @@ class Canvas(QtWidgets.QWidget):
             shape_type=self._ai_output_format,
         )
 
-    def _shapes_from_ai_box(self, bbox_points: list[QPointF]) -> list[Shape]:
-        bbox_points = _normalize_bbox_points(bbox_points=bbox_points)
-        image: np.ndarray = labelme.utils.img_qt_to_arr(img_qt=self.pixmap.toImage())
-        response: osam.types.GenerateResponse = self._get_osam_session().run(
-            image=imgviz.asrgb(image),  # type: ignore[arg-type]
-            image_id=str(self._pixmap_hash),
-            points=np.array([[p.x(), p.y()] for p in bbox_points]),
-            # point_labels: 2=box corner, 3=opposite box corner (SAM convention)
-            point_labels=np.array([2, 3]),
-        )
-        return _automation.shapes_from_detections(
-            detections=_detections_from_annotations(response.annotations),
-            shape_type=self._ai_output_format,
-        )
-
     def backup_shapes(self) -> None:
         self.shape_backups.append([s.copy() for s in self.shapes])
 
@@ -1356,7 +1341,11 @@ class Canvas(QtWidgets.QWidget):
                 point_labels=self._current.point_labels,
             )
         if self.create_mode == "ai_box_to_shape":
-            return self._shapes_from_ai_box(bbox_points=self._current.points)
+            # point_labels: 2=box corner, 3=opposite box corner (SAM convention)
+            return self._shapes_from_ai_points(
+                points=_normalize_bbox_points(bbox_points=self._current.points),
+                point_labels=[2, 3],
+            )
         raise AssertionError(f"unreachable: {self.create_mode}")
 
     def _reset_after_shape_creation(self) -> None:
