@@ -47,6 +47,15 @@ def _isolated_qtsettings(
     yield
 
 
+@pytest.fixture(autouse=True)
+def _stub_setup_loguru(monkeypatch: pytest.MonkeyPatch) -> None:
+    # main() configures loguru with a file handler using enqueue=True, which
+    # spawns a multiprocessing.Queue (semaphores → file descriptors). Calling
+    # main() per test leaks FDs faster than GC reclaims them and exhausts the
+    # worker's ulimit. Tests don't need file logging, so stub it out.
+    monkeypatch.setattr("labelme.__main__._setup_loguru", lambda logger_level: None)
+
+
 MainWinFactory = Callable[..., MainWindow]
 
 
