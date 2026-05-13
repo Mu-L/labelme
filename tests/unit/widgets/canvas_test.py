@@ -136,8 +136,8 @@ def test_finalize_with_empty_inference_resets_state_and_notifies(
     # an overlapping detection). The empty branch of _finalize must reset the
     # in-progress drawing state so the edit-mode button becomes usable again
     # and notify the user that inference produced nothing.
-    monkeypatch.setattr(canvas, "_shapes_from_points_ai", lambda **_: [])
-    monkeypatch.setattr(canvas, "_shapes_from_bbox_ai", lambda **_: [])
+    monkeypatch.setattr(canvas, "_shapes_from_ai_points", lambda **_: [])
+    monkeypatch.setattr(canvas, "_shapes_from_ai_box", lambda **_: [])
     canvas.create_mode = create_mode
     canvas._current = Shape(shape_type="rectangle")
     drawing_polygon_emissions: list[bool] = []

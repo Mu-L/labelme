@@ -196,7 +196,7 @@ class Canvas(QtWidgets.QWidget):
             self._osam_session = OsamSession(model_name=self._osam_session_model_name)
         return self._osam_session
 
-    def _shapes_from_points_ai(
+    def _shapes_from_ai_points(
         self, points: list[QPointF], point_labels: list[int]
     ) -> list[Shape]:
         image: np.ndarray = labelme.utils.img_qt_to_arr(img_qt=self.pixmap.toImage())
@@ -211,7 +211,7 @@ class Canvas(QtWidgets.QWidget):
             shape_type=self._ai_output_format,
         )
 
-    def _shapes_from_bbox_ai(self, bbox_points: list[QPointF]) -> list[Shape]:
+    def _shapes_from_ai_box(self, bbox_points: list[QPointF]) -> list[Shape]:
         bbox_points = _normalize_bbox_points(bbox_points=bbox_points)
         image: np.ndarray = labelme.utils.img_qt_to_arr(img_qt=self.pixmap.toImage())
         response: osam.types.GenerateResponse = self._get_osam_session().run(
@@ -1303,7 +1303,7 @@ class Canvas(QtWidgets.QWidget):
             point=self._line.points[1],
             label=self._line.point_labels[1],
         )
-        ai_shapes = self._shapes_from_points_ai(
+        ai_shapes = self._shapes_from_ai_points(
             points=preview.points,
             point_labels=preview.point_labels,
         )
@@ -1352,12 +1352,12 @@ class Canvas(QtWidgets.QWidget):
     def _build_new_shapes_from_ai_inference(self) -> list[Shape]:
         assert self._current is not None
         if self.create_mode == "ai_points_to_shape":
-            return self._shapes_from_points_ai(
+            return self._shapes_from_ai_points(
                 points=self._current.points,
                 point_labels=self._current.point_labels,
             )
         if self.create_mode == "ai_box_to_shape":
-            return self._shapes_from_bbox_ai(bbox_points=self._current.points)
+            return self._shapes_from_ai_box(bbox_points=self._current.points)
         raise AssertionError(f"unreachable: {self.create_mode}")
 
     def _reset_after_shape_creation(self) -> None:
