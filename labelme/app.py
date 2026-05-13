@@ -1339,6 +1339,10 @@ class MainWindow(QtWidgets.QMainWindow):
                     description=json.dumps(dict(score=score.item(), text=text)),
                 )
             )
+        detections = _automation.suppress_detections_greedy(
+            detections=detections,
+            iou_threshold=self._ai_text.get_iou_threshold(),
+        )
         shapes: list[Shape] = _automation.shapes_from_detections(
             detections=detections, shape_type=shape_type
         )
