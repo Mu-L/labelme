@@ -137,9 +137,12 @@ def test_finalize_with_empty_inference_resets_state_and_notifies(
     # in-progress drawing state so the edit-mode button becomes usable again
     # and notify the user that inference produced nothing.
     monkeypatch.setattr(canvas, "_shapes_from_ai_points", lambda **_: [])
-    monkeypatch.setattr(canvas, "_shapes_from_ai_box", lambda **_: [])
     canvas.create_mode = create_mode
     canvas._current = Shape(shape_type="rectangle")
+    # ai_box_to_shape normalizes the two bbox corners before delegating to the
+    # (monkeypatched) inference call, so the in-progress shape needs 2 points.
+    canvas._current.add_point(QPointF(0, 0))
+    canvas._current.add_point(QPointF(10, 10))
     drawing_polygon_emissions: list[bool] = []
     inference_no_shapes_emissions: list[None] = []
     canvas.drawing_polygon.connect(drawing_polygon_emissions.append)
