@@ -200,6 +200,8 @@ def nearest_vertex_index(
     point: QtCore.QPointF,
     epsilon: float,
 ) -> int | None:
+    if shape.shape_type == "mask":
+        return None
     scaled_point = point * shape.scale
     nearest = _argmin(
         utils.distance(p * shape.scale - scaled_point) for p in shape.points
