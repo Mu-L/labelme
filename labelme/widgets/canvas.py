@@ -205,8 +205,15 @@ class Canvas(QtWidgets.QWidget):
             points=np.array([[p.x(), p.y()] for p in points]),
             point_labels=np.array(point_labels),
         )
-        return _automation.shapes_from_detections(
+        # iou_threshold is hardcoded here because the ai-points/box flow has
+        # no user-facing IoU control (unlike app.py's ai-text flow). 0.5 is
+        # the same default the ai-text widget ships with.
+        detections = _automation.suppress_detections_greedy(
             detections=_detections_from_annotations(response.annotations),
+            iou_threshold=0.5,
+        )
+        return _automation.shapes_from_detections(
+            detections=detections,
             shape_type=self._ai_output_format,
         )
 
