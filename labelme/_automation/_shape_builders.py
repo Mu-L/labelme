@@ -76,6 +76,8 @@ def _shape_from_detection(
     if shape_type == "mask":
         if detection.bbox is None or detection.mask is None:
             return None
+        if not detection.mask.any():
+            return None
         xmin = int(detection.bbox[0])
         ymin = int(detection.bbox[1])
         xmax = int(detection.bbox[2])
