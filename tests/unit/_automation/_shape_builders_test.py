@@ -148,3 +148,15 @@ def test_shapes_from_detections_oriented_rectangle_square_mask_no_bbox() -> None
     expected = [(0, 0), (10, 0), (10, 10), (0, 10)]
     for i, (x, y) in enumerate(expected):
         assert (shape.points[i].x(), shape.points[i].y()) == pytest.approx((x, y))
+
+
+def test_shapes_from_detections_mask_drops_empty_mask() -> None:
+    # OSAM occasionally returns a bbox whose segmentation mask is all-False;
+    # without this guard the shape would render as bbox-only (no visible mask).
+    shapes = shapes_from_detections(
+        detections=[
+            Detection(bbox=(10, 20, 30, 50), mask=np.zeros((31, 21), dtype=bool))
+        ],
+        shape_type="mask",
+    )
+    assert shapes == []
