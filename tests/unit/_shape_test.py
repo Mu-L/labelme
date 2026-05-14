@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import math
 
+import numpy as np
 import pytest
 from PyQt5 import QtCore
 
@@ -42,4 +43,18 @@ def test_rotate_non_oriented_rectangle_raises() -> None:
             shape=shape,
             center=QtCore.QPointF(0.0, 0.0),
             angle=math.pi / 2,
+        )
+
+
+def test_nearest_vertex_index_returns_none_for_mask() -> None:
+    # Mask bbox is anchored to the bitmap; exposing draggable vertices would
+    # desync the rectangle from the mask.
+    shape = Shape(shape_type="mask", mask=np.ones((4, 4), dtype=bool))
+    shape.add_point(QtCore.QPointF(0.0, 0.0))
+    shape.add_point(QtCore.QPointF(3.0, 3.0))
+    shape.close()
+
+    for corner in shape.points:
+        assert (
+            _shape.nearest_vertex_index(shape=shape, point=corner, epsilon=10.0) is None
         )
