@@ -212,6 +212,10 @@ class Canvas(QtWidgets.QWidget):
             detections=_detections_from_annotations(response.annotations),
             iou_threshold=0.5,
         )
+        detections = _automation.suppress_detections_overlapping_existing_shapes(
+            detections=detections,
+            existing_shapes=self.shapes,
+        )
         return _automation.shapes_from_detections(
             detections=detections,
             shape_type=self._ai_output_format,

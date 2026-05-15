@@ -1298,7 +1298,10 @@ class MainWindow(QtWidgets.QMainWindow):
         for shape in self._canvas_widgets.canvas.shapes:
             if shape.shape_type != shape_type or shape.label not in texts:
                 continue
-            boxes = np.r_[boxes, [_shape_to_xyxy_bbox(shape)]]
+            shape_bbox = _automation.shape_to_xyxy_bbox(shape=shape)
+            if shape_bbox is None:
+                continue
+            boxes = np.r_[boxes, [shape_bbox]]
             scores = np.r_[scores, [SCORE_FOR_EXISTING_SHAPE]]
             labels = np.r_[labels, [texts.index(shape.label)]]
 
@@ -2622,27 +2625,6 @@ def _resolve_text_annotation_shape_type(
     if create_mode in get_args(_TextToAnnotationCreateMode):
         return cast(_TextToAnnotationCreateMode, create_mode)
     return None
-
-
-def _shape_to_xyxy_bbox(shape: Shape) -> NDArray[np.float32]:
-    if shape.shape_type == "circle":
-        center, edge = shape.points
-        radius = math.sqrt((edge.x() - center.x()) ** 2 + (edge.y() - center.y()) ** 2)
-        return np.array(
-            [
-                center.x() - radius,
-                center.y() - radius,
-                center.x() + radius,
-                center.y() + radius,
-            ],
-            dtype=np.float32,
-        )
-    if shape.shape_type in ("rectangle", "polygon", "mask"):
-        points = np.array([[p.x(), p.y()] for p in shape.points])
-        xmin, ymin = points.min(axis=0)
-        xmax, ymax = points.max(axis=0)
-        return np.array([xmin, ymin, xmax, ymax], dtype=np.float32)
-    raise ValueError(f"Unsupported shape_type: {shape.shape_type!r}")
 
 
 def _rgb_from_colormap_id(*, label_id: int) -> tuple[int, int, int]:
